@@ -13,7 +13,7 @@ from bot.database.crud import (
     get_user_language,
     update_user_language,
 )
-from bot.i18n import t
+from bot.i18n import detect_language, t
 from bot.keyboards.inline import (
     get_back_keyboard,
     get_language_keyboard,
@@ -27,12 +27,16 @@ router = Router()
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     """Обработка команды /start"""
+    # определяем язык по настройкам Telegram
+    detected_lang = detect_language(message.from_user.language_code)
+
     async with async_session() as session:
         await get_or_create_user(
             session=session,
             telegram_id=message.from_user.id,
             username=message.from_user.username,
             full_name=message.from_user.full_name,
+            language=detected_lang,
         )
         lang = await get_user_language(session, message.from_user.id)
 

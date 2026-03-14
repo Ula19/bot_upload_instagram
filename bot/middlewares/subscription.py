@@ -70,9 +70,9 @@ class SubscriptionMiddleware(BaseMiddleware):
         if not not_subscribed:
             return await handler(event, data)
 
-        # не подписан — получаем язык и показываем приветствие
-        async with async_session() as session:
-            lang = await get_user_language(session, user.id) if user else "ru"
+        # определяем язык — из Telegram напрямую (для подписки)
+        from bot.i18n import detect_language
+        lang = detect_language(user.language_code) if user else "uz"
 
         text = t("sub.welcome", lang)
         keyboard = get_subscription_keyboard(not_subscribed, lang)

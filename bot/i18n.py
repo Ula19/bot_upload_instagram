@@ -351,3 +351,11 @@ def t(key: str, lang: str = "ru", **kwargs) -> str:
     if kwargs:
         text = text.format(**kwargs)
     return text
+
+
+def detect_language(language_code: str | None) -> str:
+    """Определяет язык по коду из Telegram: ru → русский, остальные → узбекский"""
+    if language_code and language_code.startswith("ru"):
+        return "ru"
+    return "uz"
+

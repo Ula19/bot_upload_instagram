@@ -12,6 +12,7 @@ async def get_or_create_user(
     telegram_id: int,
     username: str | None,
     full_name: str,
+    language: str | None = None,
 ) -> User:
     """Получить юзера или создать нового"""
     result = await session.execute(
@@ -24,6 +25,7 @@ async def get_or_create_user(
             telegram_id=telegram_id,
             username=username,
             full_name=full_name,
+            language=language or "ru",
         )
         session.add(user)
         await session.commit()
