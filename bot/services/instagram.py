@@ -1,12 +1,12 @@
-"""Сервис скачивания Instagram — yt-dlp для видео, aiohttp для фото"""
+"""Сервис скачивания Instagram — видео/Reels через yt-dlp
+TODO: добавить скачивание фото (Cobalt API или instaloader)
+"""
 import asyncio
 import logging
 import os
-import re
 import tempfile
 from dataclasses import dataclass
 
-import aiohttp
 import yt_dlp
 
 logger = logging.getLogger(__name__)
@@ -23,10 +23,9 @@ class DownloadResult:
 
 
 class InstagramDownloader:
-    """Скачивает контент из Instagram — видео через yt-dlp, фото через aiohttp"""
+    """Скачивает видео/Reels из Instagram через yt-dlp"""
 
     def __init__(self):
-        # папка для временных файлов
         self.download_dir = tempfile.mkdtemp(prefix="insta_bot_")
 
     def _get_yt_dlp_options(self, output_path: str) -> dict:
@@ -37,54 +36,34 @@ class InstagramDownloader:
             "quiet": True,
             "no_warnings": True,
             "extract_flat": False,
-            "max_filesize": 50 * 1024 * 1024,
+            "max_filesize": 50 * 1024 * 1024,  # лимит Telegram 50 МБ
             "noplaylist": True,
             "writethumbnail": True,
             "socket_timeout": 30,
         }
 
     async def download(self, url: str) -> DownloadResult:
-        """Скачивает медиа по ссылке Instagram (сначала yt-dlp, потом фото)"""
-        # сначала пробуем через yt-dlp (для видео/reels)
-        try:
-            result = await self._download_video(url)
-            if result:
-                return result
-        except Exception as e:
-            logger.info(f"yt-dlp не смог скачать {url}: {e}")
-
-        # если yt-dlp не справился — пробуем скачать как фото
-        try:
-            result = await self._download_photo(url)
-            if result:
-                return result
-        except Exception as e:
-            logger.error(f"Фото тоже не удалось: {e}")
-
-        raise FileNotFoundError("Не удалось скачать медиа. Проверь ссылку.")
-
-    async def _download_video(self, url: str) -> DownloadResult | None:
-        """Скачивает видео через yt-dlp"""
+        """Скачивает видео по ссылке Instagram"""
         output_path = os.path.join(self.download_dir, "%(id)s.%(ext)s")
         opts = self._get_yt_dlp_options(output_path)
 
+        # yt-dlp синхронный — запускаем в отдельном потоке
         loop = asyncio.get_event_loop()
         info = await loop.run_in_executor(None, self._yt_dlp_sync, url, opts)
 
-        # если это фото-пост — yt-dlp вернёт пустой playlist
+        # фото-посты yt-dlp не поддерживает
         if info.get("_type") == "playlist" and not info.get("entries"):
-            return None
+            raise FileNotFoundError(
+                "Это фото-пост. Пока поддерживаются только видео и Reels."
+            )
 
         file_path = self._find_downloaded_file(info)
         if not file_path or not os.path.exists(file_path):
-            return None
+            raise FileNotFoundError("Файл не найден после скачивания.")
 
-        # определяем тип медиа
+        # определяем тип
         ext = os.path.splitext(file_path)[1].lower()
-        if ext in (".jpg", ".jpeg", ".png", ".webp"):
-            media_type = "photo"
-        else:
-            media_type = "video"
+        media_type = "photo" if ext in (".jpg", ".jpeg", ".png", ".webp") else "video"
 
         return DownloadResult(
             file_path=file_path,
@@ -94,55 +73,14 @@ class InstagramDownloader:
             thumbnail=None,
         )
 
-    async def _download_photo(self, url: str) -> DownloadResult | None:
-        """Скачивает фото через Instagram embed API"""
-        # получаем URL фото через oEmbed API
-        oembed_url = f"https://api.instagram.com/oembed/?url={url}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(oembed_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                if resp.status != 200:
-                    logger.warning(f"oEmbed вернул {resp.status}")
-                    return None
-                data = await resp.json()
-
-        thumbnail_url = data.get("thumbnail_url")
-        title = data.get("title", "Instagram")
-
-        if not thumbnail_url:
-            logger.warning("oEmbed не вернул thumbnail_url")
-            return None
-
-        # скачиваем фото
-        post_id = url.rstrip("/").split("/")[-1]
-        file_path = os.path.join(self.download_dir, f"{post_id}.jpg")
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(thumbnail_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                if resp.status != 200:
-                    return None
-                content = await resp.read()
-                with open(file_path, "wb") as f:
-                    f.write(content)
-
-        logger.info(f"Фото скачано: {file_path} ({len(content)} байт)")
-
-        return DownloadResult(
-            file_path=file_path,
-            media_type="photo",
-            title=title,
-            duration=None,
-            thumbnail=None,
-        )
-
     def _find_downloaded_file(self, info: dict) -> str:
-        """Ищет скачанный файл разными способами"""
+        """Ищет скачанный файл"""
         # способ 1: из requested_downloads
         downloads = info.get("requested_downloads", [])
         if downloads and downloads[0].get("filepath"):
             return downloads[0]["filepath"]
 
-        # способ 2: собираем путь из id и ext
+        # способ 2: из id + ext
         video_id = info.get("id", "")
         ext = info.get("ext", "mp4")
         if video_id:
@@ -150,7 +88,7 @@ class InstagramDownloader:
             if os.path.exists(candidate):
                 return candidate
 
-        # способ 3: ищем самый свежий файл в папке
+        # способ 3: самый новый файл в папке
         files = []
         for f in os.listdir(self.download_dir):
             full = os.path.join(self.download_dir, f)
