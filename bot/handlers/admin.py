@@ -5,6 +5,8 @@
 """
 import logging
 
+from aiogram.exceptions import TelegramBadRequest
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -78,9 +80,12 @@ async def admin_stats(callback: CallbackQuery) -> None:
         f"📢 Каналов: <b>{stats['total_channels']}</b>"
     )
 
-    await callback.message.edit_text(
-        text, reply_markup=get_admin_keyboard(),
-    )
+    try:
+        await callback.message.edit_text(
+            text, reply_markup=get_admin_keyboard(),
+        )
+    except TelegramBadRequest:
+        pass  # текст не изменился — ок
     await callback.answer()
 
 
@@ -169,8 +174,11 @@ async def process_title(message: Message, state: FSMContext) -> None:
 
     await state.update_data(title=title)
     await message.answer(
-        "🔗 Теперь отправь <b>ссылку на канал</b> "
-        "(например <code>https://t.me/your_channel</code>):",
+        "🔗 Теперь отправь <b>ссылку или юзернейм канала</b>\n\n"
+        "Принимаю любой формат:\n"
+        "• <code>https://t.me/your_channel</code>\n"
+        "• <code>@your_channel</code>\n"
+        "• <code>your_channel</code>",
         reply_markup=get_cancel_keyboard(),
     )
     await state.set_state(AddChannelStates.waiting_invite_link)
@@ -182,10 +190,12 @@ async def process_invite_link(message: Message, state: FSMContext) -> None:
     if not is_admin(message.from_user.id):
         return
 
-    invite_link = message.text.strip()
-    if not invite_link.startswith(("https://t.me/", "https://telegram.me/")):
+    raw = message.text.strip()
+    # приводим к единому формату https://t.me/...
+    invite_link = _normalize_channel_link(raw)
+    if not invite_link:
         await message.answer(
-            "❌ Ссылка должна начинаться с https://t.me/\nПопробуй ещё:",
+            "❌ Не удалось распознать ссылку.\nПопробуй ещё:",
             reply_markup=get_cancel_keyboard(),
         )
         return
@@ -250,3 +260,32 @@ async def cancel_action(callback: CallbackQuery, state: FSMContext) -> None:
         reply_markup=get_admin_keyboard(),
     )
     await callback.answer("Действие отменено")
+
+
+def _normalize_channel_link(raw: str) -> str | None:
+    """Приводит ввод пользователя к формату https://t.me/...
+    Принимает: https://t.me/channel, @channel, channel
+    """
+    raw = raw.strip()
+
+    # уже полная ссылка
+    if raw.startswith("https://t.me/"):
+        return raw
+    if raw.startswith("https://telegram.me/"):
+        # нормализуем к t.me
+        return raw.replace("https://telegram.me/", "https://t.me/")
+    if raw.startswith("http://t.me/"):
+        return raw.replace("http://", "https://")
+
+    # @channel → https://t.me/channel
+    if raw.startswith("@"):
+        username = raw[1:]
+        if username and username.isascii():
+            return f"https://t.me/{username}"
+        return None
+
+    # просто channel_name
+    if raw.isascii() and " " not in raw and len(raw) > 2:
+        return f"https://t.me/{raw}"
+
+    return None

@@ -5,6 +5,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
 
+from bot.config import settings
 from bot.database import async_session
 from bot.database.crud import get_or_create_user
 from bot.keyboards.inline import get_back_keyboard, get_start_keyboard
@@ -36,7 +37,7 @@ async def cmd_start(message: Message) -> None:
 
     await message.answer(
         welcome_text,
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user_id=message.from_user.id),
         parse_mode="HTML",
     )
 
@@ -55,8 +56,25 @@ async def back_to_menu(callback: CallbackQuery) -> None:
 
     await callback.message.edit_text(
         welcome_text,
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user_id=callback.from_user.id),
         parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin_panel")
+async def open_admin_panel(callback: CallbackQuery) -> None:
+    """Открывает админ-панель через кнопку"""
+    from bot.keyboards.admin import get_admin_keyboard
+
+    if callback.from_user.id not in settings.admin_id_list:
+        await callback.answer("🚫 Нет доступа")
+        return
+
+    await callback.message.edit_text(
+        "🔧 <b>Админ-панель</b>\n\n"
+        "Выбери действие:",
+        reply_markup=get_admin_keyboard(),
     )
     await callback.answer()
 
@@ -171,7 +189,7 @@ async def check_subscription(callback: CallbackQuery) -> None:
         )
         await callback.message.edit_text(
             welcome_text,
-            reply_markup=get_start_keyboard(),
+            reply_markup=get_start_keyboard(user_id=callback.from_user.id),
             parse_mode="HTML",
         )
         await callback.answer("✅ Подписка подтверждена!")

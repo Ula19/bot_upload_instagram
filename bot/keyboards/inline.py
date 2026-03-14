@@ -4,9 +4,11 @@ TODO: добавить icon_custom_emoji_id когда юзер пришлёт I
 """
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from bot.config import settings
 
-def get_start_keyboard() -> InlineKeyboardMarkup:
-    """Главное меню после /start"""
+
+def get_start_keyboard(user_id: int | None = None) -> InlineKeyboardMarkup:
+    """Главное меню после /start (админам показываем кнопку админки)"""
     buttons = [
         [
             InlineKeyboardButton(
@@ -28,6 +30,17 @@ def get_start_keyboard() -> InlineKeyboardMarkup:
             ),
         ],
     ]
+
+    # кнопка админки — только для админов
+    if user_id and user_id in settings.admin_id_list:
+        buttons.append([
+            InlineKeyboardButton(
+                text="🔧 Админ-панель",
+                callback_data="admin_panel",
+                style="danger",
+            ),
+        ])
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
