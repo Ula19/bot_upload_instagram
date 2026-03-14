@@ -32,3 +32,4 @@ alembic/versions/*.pyc
 # не отслеживаем md кроме README
 AGENTS.md
 PROJECT_LOG.md
+DEPLOY.md
