@@ -1,0 +1,34 @@
+"""Конфигурация бота — все настройки из .env"""
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # Токен бота
+    bot_token: str
+
+    # PostgreSQL
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "bot_4_insta"
+    db_user: str = "postgres"
+    db_password: str = ""
+
+    # Админы бота (список user_id)
+    admin_ids: list[int] = []
+
+    # Кэш скачиваний (дни)
+    cache_ttl_days: int = 30
+
+    @property
+    def db_url(self) -> str:
+        """URL для подключения к PostgreSQL через asyncpg"""
+        return (
+            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
+# глобальный экземпляр настроек
+settings = Settings()
