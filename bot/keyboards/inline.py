@@ -43,7 +43,7 @@ def get_start_keyboard(
     if user_id and user_id in settings.admin_id_list:
         buttons.append([
             InlineKeyboardButton(
-                text="🔧 Админ-панель",
+                text=t("btn.admin_panel", lang),
                 callback_data="admin_panel",
                 style="danger",
             ),

@@ -18,8 +18,8 @@ TRANSLATIONS = {
             "👋 <b>Salom, {name}!</b>\n\n"
             "🎬 Instagram'dan video va rasm yuklab olishda yordam beraman.\n\n"
             "📌 <b>Qanday foydalanish:</b>\n"
-            "Menga post, Reels yoki story havolasini yubor — "
-            "men senga media faylni yuboraman! 🚀\n\n"
+            "Menga post, Reels yoki story havolasini yuboring — "
+            "men sizga media faylni yuboraman! 🚀\n\n"
             "Quyidagi tugmalardan birini tanlang:"
         ),
     },
@@ -42,7 +42,7 @@ TRANSLATIONS = {
         "uz": "◀️ Orqaga",
     },
     "btn.language": {
-        "ru": "🌐 Tilni o'zgartirish",
+        "ru": "🌐 Сменить язык",
         "uz": "🌐 Tilni o'zgartirish",
     },
 
@@ -336,6 +336,10 @@ TRANSLATIONS = {
     "btn.admin_cancel_del": {
         "ru": "❌ Отмена",
         "uz": "❌ Bekor qilish",
+    },
+    "btn.admin_panel": {
+        "ru": "🔧 Админ-панель",
+        "uz": "🔧 Admin panel",
     },
 }
 
