@@ -88,3 +88,78 @@ async def save_download(
 
     await session.commit()
     return download
+
+
+# === Админские функции ===
+
+async def add_channel(
+    session: AsyncSession,
+    channel_id: int,
+    title: str,
+    invite_link: str,
+) -> Channel:
+    """Добавить канал для обязательной подписки"""
+    # проверяем нет ли уже
+    result = await session.execute(
+        select(Channel).where(Channel.channel_id == channel_id)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise ValueError(f"Канал {channel_id} уже добавлен")
+
+    channel = Channel(
+        channel_id=channel_id,
+        title=title,
+        invite_link=invite_link,
+    )
+    session.add(channel)
+    await session.commit()
+    await session.refresh(channel)
+    return channel
+
+
+async def remove_channel(session: AsyncSession, channel_id: int) -> bool:
+    """Удалить канал. Возвращает True если удалён"""
+    result = await session.execute(
+        select(Channel).where(Channel.channel_id == channel_id)
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        return False
+
+    await session.delete(channel)
+    await session.commit()
+    return True
+
+
+async def get_user_stats(session: AsyncSession) -> dict:
+    """Статистика: всего юзеров, за сегодня, скачиваний"""
+    from sqlalchemy import func as sa_func
+
+    # всего юзеров
+    total = await session.execute(select(sa_func.count(User.id)))
+    total_users = total.scalar() or 0
+
+    # за сегодня
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_result = await session.execute(
+        select(sa_func.count(User.id)).where(User.created_at >= today)
+    )
+    today_users = today_result.scalar() or 0
+
+    # всего скачиваний
+    downloads = await session.execute(
+        select(sa_func.sum(User.download_count))
+    )
+    total_downloads = downloads.scalar() or 0
+
+    # каналов
+    channels = await session.execute(select(sa_func.count(Channel.id)))
+    total_channels = channels.scalar() or 0
+
+    return {
+        "total_users": total_users,
+        "today_users": today_users,
+        "total_downloads": total_downloads,
+        "total_channels": total_channels,
+    }

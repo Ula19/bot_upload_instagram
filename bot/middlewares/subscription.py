@@ -8,6 +8,7 @@ from typing import Any, Awaitable, Callable
 from aiogram import BaseMiddleware, Bot
 from aiogram.types import CallbackQuery, Message, TelegramObject
 
+from bot.config import settings
 from bot.database import async_session
 from bot.database.crud import get_active_channels
 from bot.keyboards.inline import get_subscription_keyboard
@@ -27,16 +28,10 @@ class SubscriptionMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        # пропускаем кнопку "Проверить подписку" — иначе замкнутый круг
-        if isinstance(event, CallbackQuery) and event.data in SKIP_CALLBACKS:
-            return await handler(event, data)
-
-        # получаем список каналов
-        async with async_session() as session:
-            channels = await get_active_channels(session)
-
-        # если каналов нет — пропускаем проверку
-        if not channels:
+        # пропускаем кнопку "Проверить подписку" и админские callback
+        if isinstance(event, CallbackQuery) and (
+            event.data in SKIP_CALLBACKS or event.data.startswith("admin")
+        ):
             return await handler(event, data)
 
         # определяем юзера
@@ -46,7 +41,16 @@ class SubscriptionMiddleware(BaseMiddleware):
         elif isinstance(event, CallbackQuery):
             user = event.from_user
 
-        if not user:
+        # админы проходят без проверки
+        if user and user.id in settings.admin_id_list:
+            return await handler(event, data)
+
+        # получаем список каналов
+        async with async_session() as session:
+            channels = await get_active_channels(session)
+
+        # если каналов нет — пропускаем проверку
+        if not channels:
             return await handler(event, data)
 
         # проверяем подписку на все каналы
