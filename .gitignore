@@ -1,4 +1,34 @@
+# виртуальное окружение
+venv/
+.venv/
 
-# Dolt database files (added by bd init)
+# переменные окружения
+.env
+
+# кэш Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# временные файлы
+*.tmp
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Dolt (beads)
 .dolt/
 *.db
+
+# скачанные медиа
+downloads/
+
+# alembic
+alembic/versions/*.pyc
+
+# не отслеживаем md кроме README
+AGENTS.md
+PROJECT_LOG.md

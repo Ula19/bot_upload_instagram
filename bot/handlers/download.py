@@ -1,0 +1,188 @@
+"""Хэндлер скачивания — обрабатывает ссылки Instagram"""
+import logging
+import os
+import re
+
+from aiogram import F, Router
+from aiogram.types import CallbackQuery, FSInputFile, Message
+
+from bot.database import async_session
+from bot.database.crud import (
+    get_cached_download,
+    get_or_create_user,
+    get_user_language,
+    save_download,
+)
+from bot.i18n import t
+from bot.keyboards.inline import get_back_keyboard
+from bot.services.instagram import DownloadResult, downloader
+from bot.services.stories import download_story, is_story_url
+from bot.utils.helpers import clean_instagram_url, is_instagram_url
+
+logger = logging.getLogger(__name__)
+router = Router()
+
+
+@router.message(F.text)
+async def handle_instagram_link(message: Message) -> None:
+    """Обработка текстовых сообщений — ищем ссылки Instagram"""
+    text = message.text.strip()
+
+    # получаем язык юзера
+    async with async_session() as session:
+        lang = await get_user_language(session, message.from_user.id)
+
+    # проверяем что это ссылка на инсту
+    if not is_instagram_url(text):
+        await message.answer(
+            t("download.not_instagram", lang),
+            parse_mode="HTML",
+        )
+        return
+
+    await _process_download(message, text, lang)
+
+
+async def _process_download(
+    message: Message, raw_url: str, lang: str = "ru"
+) -> None:
+    """Скачивает и отправляет медиа — вызывается из хэндлера и после подписки"""
+    clean_url = clean_instagram_url(raw_url)
+
+    # обновляем юзера в БД + проверяем кэш
+    async with async_session() as session:
+        user = await get_or_create_user(
+            session=session,
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            full_name=message.from_user.full_name,
+        )
+        cached = await get_cached_download(session, clean_url)
+
+    if cached:
+        logger.info(f"Кэш найден для {clean_url}, отправляем file_id")
+        await _send_cached(message, cached.file_id, cached.media_type, clean_url)
+        return
+
+    # кэша нет — скачиваем
+    status_msg = await message.answer(t("download.processing", lang))
+
+    result = None
+    try:
+        if is_story_url(clean_url):
+            story_data = await download_story(clean_url, downloader.download_dir)
+            result = DownloadResult(
+                file_path=story_data["file_path"],
+                media_type=story_data["media_type"],
+                title=story_data["title"],
+            )
+        else:
+            result = await downloader.download(clean_url)
+
+        file_size = os.path.getsize(result.file_path)
+        if file_size > 50 * 1024 * 1024:
+            await status_msg.edit_text(t("error.too_large", lang))
+            return
+
+        file_id = await _send_media(message, result)
+
+        if file_id:
+            async with async_session() as session:
+                await save_download(
+                    session=session,
+                    instagram_url=clean_url,
+                    file_id=file_id,
+                    media_type=result.media_type,
+                )
+                user_obj = await get_or_create_user(
+                    session=session,
+                    telegram_id=message.from_user.id,
+                    username=message.from_user.username,
+                    full_name=message.from_user.full_name,
+                )
+                user_obj.download_count += 1
+                await session.commit()
+
+        await status_msg.delete()
+
+    except Exception as e:
+        logger.error(f"Ошибка скачивания {clean_url}: {e}")
+        error_text = _get_error_text(str(e), lang)
+        await status_msg.edit_text(error_text)
+
+    finally:
+        if result:
+            downloader.cleanup(result)
+
+
+async def _send_media(message: Message, result: DownloadResult) -> str | None:
+    """Отправляет медиа юзеру и возвращает file_id"""
+    file = FSInputFile(result.file_path)
+
+    if result.media_type == "video":
+        emoji = "📹" if "Story" in result.title else "🎬"
+        sent = await message.answer_video(
+            video=file,
+            caption=f"{emoji} {result.title}",
+            duration=int(result.duration) if result.duration else None,
+        )
+        return sent.video.file_id
+
+    elif result.media_type == "photo":
+        sent = await message.answer_photo(
+            photo=file,
+            caption=f"📸 {result.title}",
+        )
+        return sent.photo[-1].file_id
+
+    return None
+
+
+async def _send_cached(
+    message: Message, file_id: str, media_type: str, url: str
+) -> None:
+    """Отправляет из кэша по file_id с тем же caption"""
+    caption = _make_caption(media_type, url)
+    try:
+        if media_type == "video":
+            await message.answer_video(video=file_id, caption=caption)
+        elif media_type == "photo":
+            await message.answer_photo(photo=file_id, caption=caption)
+    except Exception as e:
+        logger.error(f"Ошибка отправки из кэша: {e}")
+        await message.answer("⚠️ Кэш устарел. Отправь ссылку ещё раз.")
+
+
+def _make_caption(media_type: str, url: str) -> str:
+    """Генерит caption по типу медиа и URL"""
+    if is_story_url(url):
+        match = re.search(r"stories/([^/]+)", url)
+        username = match.group(1) if match else "unknown"
+        emoji = "📹" if media_type == "video" else "📸"
+        return f"{emoji} Story @{username}"
+    elif media_type == "photo":
+        return "📸 Instagram Фото"
+    else:
+        return "🎬 Instagram Reels"
+
+
+def _get_error_text(error: str, lang: str = "ru") -> str:
+    """Человеко-понятное сообщение об ошибке"""
+    error_lower = error.lower()
+
+    if "session" in error_lower and "авторизация" in error_lower:
+        return t("error.session", lang)
+    elif "истории не найдены" in error_lower or "истекли" in error_lower:
+        return t("error.story_expired", lang)
+    elif "private" in error_lower or "login" in error_lower:
+        return t("error.private", lang)
+    elif "not found" in error_lower or "404" in error_lower:
+        return t("error.not_found", lang)
+    elif "unsupported" in error_lower:
+        return t("error.unsupported", lang)
+    elif "too large" in error_lower or "50 мб" in error_lower:
+        return t("error.too_large", lang)
+    elif "timeout" in error_lower:
+        return t("error.timeout", lang)
+    else:
+        return t("error.generic", lang)
