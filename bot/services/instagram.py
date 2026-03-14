@@ -1,13 +1,16 @@
-"""Сервис скачивания Instagram — видео/Reels через yt-dlp
-TODO: добавить скачивание фото (Cobalt API или instaloader)
+"""Сервис скачивания Instagram — через Cobalt API
+Поддерживает: видео, Reels, фото
+Cobalt docs: https://github.com/imputnet/cobalt/blob/main/docs/api.md
 """
 import asyncio
 import logging
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-import yt_dlp
+import aiohttp
+
+from bot.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,94 +20,141 @@ class DownloadResult:
     """Результат скачивания"""
     file_path: str       # путь к файлу
     media_type: str      # video, photo
-    title: str           # название поста
-    duration: int | None  # длительность в секундах (для видео)
-    thumbnail: str | None  # путь к превью
+    title: str           # название
+    duration: int | None = None
+    thumbnail: str | None = None
+
+
+@dataclass
+class PickerItem:
+    """Элемент выбора (для постов с несколькими фото/видео)"""
+    url: str
+    media_type: str  # photo, video, gif
+    thumb: str | None = None
 
 
 class InstagramDownloader:
-    """Скачивает видео/Reels из Instagram через yt-dlp"""
+    """Скачивает контент из Instagram через Cobalt API"""
 
     def __init__(self):
         self.download_dir = tempfile.mkdtemp(prefix="insta_bot_")
-
-    def _get_yt_dlp_options(self, output_path: str) -> dict:
-        """Настройки yt-dlp для скачивания видео"""
-        return {
-            "outtmpl": output_path,
-            "format": "best[ext=mp4]/best",
-            "quiet": True,
-            "no_warnings": True,
-            "extract_flat": False,
-            "max_filesize": 50 * 1024 * 1024,  # лимит Telegram 50 МБ
-            "noplaylist": True,
-            "writethumbnail": True,
-            "socket_timeout": 30,
-        }
+        self.cobalt_url = settings.cobalt_api_url
 
     async def download(self, url: str) -> DownloadResult:
-        """Скачивает видео по ссылке Instagram"""
-        output_path = os.path.join(self.download_dir, "%(id)s.%(ext)s")
-        opts = self._get_yt_dlp_options(output_path)
+        """Скачивает медиа по ссылке Instagram"""
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        body = {"url": url}
 
-        # yt-dlp синхронный — запускаем в отдельном потоке
-        loop = asyncio.get_event_loop()
-        info = await loop.run_in_executor(None, self._yt_dlp_sync, url, opts)
+        async with aiohttp.ClientSession() as session:
+            # запрос к Cobalt API
+            async with session.post(
+                self.cobalt_url,
+                headers=headers,
+                json=body,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"Cobalt вернул {resp.status}: {text}")
+                data = await resp.json()
 
-        # фото-посты yt-dlp не поддерживает
-        if info.get("_type") == "playlist" and not info.get("entries"):
-            raise FileNotFoundError(
-                "Это фото-пост. Пока поддерживаются только видео и Reels."
-            )
+            status = data.get("status")
+            logger.info(f"Cobalt ответ: status={status}")
 
-        file_path = self._find_downloaded_file(info)
-        if not file_path or not os.path.exists(file_path):
-            raise FileNotFoundError("Файл не найден после скачивания.")
+            if status == "error":
+                error = data.get("error", {})
+                raise RuntimeError(
+                    f"Cobalt ошибка: {error.get('code', 'unknown')}"
+                )
 
-        # определяем тип
-        ext = os.path.splitext(file_path)[1].lower()
-        media_type = "photo" if ext in (".jpg", ".jpeg", ".png", ".webp") else "video"
+            # redirect — прямая ссылка (видео)
+            if status == "redirect":
+                media_url = data["url"]
+                return await self._download_file(
+                    session, media_url, "video",
+                    filename=data.get("filename"),
+                )
+
+            # tunnel — Cobalt проксирует файл
+            if status == "tunnel":
+                media_url = data["url"]
+                # определяем тип по filename
+                filename = data.get("filename", "")
+                media_type = self._guess_type(filename)
+                return await self._download_file(
+                    session, media_url, media_type, filename=filename,
+                )
+
+            # picker — несколько элементов (фото-карусель)
+            if status == "picker":
+                picker = data.get("picker", [])
+                if not picker:
+                    raise RuntimeError("Cobalt вернул пустой picker")
+
+                # скачиваем первый элемент
+                item = picker[0]
+                media_type = item.get("type", "photo")
+                return await self._download_file(
+                    session, item["url"], media_type,
+                )
+
+            raise RuntimeError(f"Неизвестный статус Cobalt: {status}")
+
+    async def _download_file(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        media_type: str,
+        filename: str | None = None,
+    ) -> DownloadResult:
+        """Скачивает файл по URL"""
+        # определяем расширение
+        if media_type == "photo":
+            ext = ".jpg"
+        elif media_type == "gif":
+            ext = ".gif"
+        else:
+            ext = ".mp4"
+
+        if not filename:
+            filename = f"insta_{id(url)}{ext}"
+
+        file_path = os.path.join(self.download_dir, filename)
+
+        async with session.get(
+            url, timeout=aiohttp.ClientTimeout(total=60)
+        ) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Не удалось скачать файл: HTTP {resp.status}")
+
+            content = await resp.read()
+            # проверяем размер (лимит Telegram 50 МБ)
+            if len(content) > 50 * 1024 * 1024:
+                raise RuntimeError("Файл больше 50 МБ — лимит Telegram")
+
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+        size_mb = len(content) / (1024 * 1024)
+        logger.info(f"Скачано: {file_path} ({size_mb:.1f} МБ, {media_type})")
 
         return DownloadResult(
             file_path=file_path,
             media_type=media_type,
-            title=info.get("title", "Instagram"),
-            duration=info.get("duration"),
-            thumbnail=None,
+            title="Instagram",
         )
 
-    def _find_downloaded_file(self, info: dict) -> str:
-        """Ищет скачанный файл"""
-        # способ 1: из requested_downloads
-        downloads = info.get("requested_downloads", [])
-        if downloads and downloads[0].get("filepath"):
-            return downloads[0]["filepath"]
-
-        # способ 2: из id + ext
-        video_id = info.get("id", "")
-        ext = info.get("ext", "mp4")
-        if video_id:
-            candidate = os.path.join(self.download_dir, f"{video_id}.{ext}")
-            if os.path.exists(candidate):
-                return candidate
-
-        # способ 3: самый новый файл в папке
-        files = []
-        for f in os.listdir(self.download_dir):
-            full = os.path.join(self.download_dir, f)
-            if os.path.isfile(full) and not f.endswith((".json", ".txt")):
-                files.append((os.path.getmtime(full), full))
-
-        if files:
-            files.sort(reverse=True)
-            return files[0][1]
-
-        return ""
-
-    def _yt_dlp_sync(self, url: str, opts: dict) -> dict:
-        """Синхронная обёртка yt-dlp"""
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            return ydl.extract_info(url, download=True)
+    def _guess_type(self, filename: str) -> str:
+        """Определяет тип медиа по имени файла"""
+        lower = filename.lower()
+        if any(lower.endswith(e) for e in (".jpg", ".jpeg", ".png", ".webp")):
+            return "photo"
+        elif lower.endswith(".gif"):
+            return "gif"
+        return "video"
 
     def cleanup(self, result: DownloadResult) -> None:
         """Удаляет временные файлы после отправки"""
@@ -112,8 +162,6 @@ class InstagramDownloader:
             if os.path.exists(result.file_path):
                 os.remove(result.file_path)
                 logger.info(f"Удалён: {result.file_path}")
-            if result.thumbnail and os.path.exists(result.thumbnail):
-                os.remove(result.thumbnail)
         except OSError as e:
             logger.warning(f"Не удалось удалить файл: {e}")
 

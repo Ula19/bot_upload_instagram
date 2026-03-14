@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Кэш скачиваний (дни)
     cache_ttl_days: int = 30
 
+    # Cobalt API (для скачивания фото и видео)
+    cobalt_api_url: str = "http://localhost:9000"
+
     @property
     def admin_id_list(self) -> list[int]:
         """Парсит admin_ids из строки в список int"""
