@@ -1,6 +1,7 @@
 """Хэндлер скачивания — обрабатывает ссылки Instagram"""
 import logging
 import os
+import re
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile, Message
@@ -51,7 +52,7 @@ async def handle_instagram_link(message: Message) -> None:
     if cached:
         # отправляем из кэша — мгновенно!
         logger.info(f"Кэш найден для {clean_url}, отправляем file_id")
-        await _send_cached(message, cached.file_id, cached.media_type)
+        await _send_cached(message, cached.file_id, cached.media_type, clean_url)
         return
 
     # кэша нет — скачиваем
@@ -122,9 +123,10 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
     file = FSInputFile(result.file_path)
 
     if result.media_type == "video":
+        emoji = "📹" if "Story" in result.title else "🎬"
         sent = await message.answer_video(
             video=file,
-            caption=f"🎬 {result.title}" if result.title else None,
+            caption=f"{emoji} {result.title}",
             duration=int(result.duration) if result.duration else None,
         )
         return sent.video.file_id
@@ -132,27 +134,40 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
     elif result.media_type == "photo":
         sent = await message.answer_photo(
             photo=file,
-            caption=f"📸 {result.title}" if result.title else None,
+            caption=f"📸 {result.title}",
         )
-        # у фото file_id в последнем элементе массива (макс. размер)
         return sent.photo[-1].file_id
 
     return None
 
 
 async def _send_cached(
-    message: Message, file_id: str, media_type: str
+    message: Message, file_id: str, media_type: str, url: str
 ) -> None:
-    """Отправляет из кэша по file_id — мгновенно"""
+    """Отправляет из кэша по file_id с тем же caption"""
+    caption = _make_caption(media_type, url)
     try:
         if media_type == "video":
-            await message.answer_video(video=file_id, caption="🎬 Из кэша ⚡")
+            await message.answer_video(video=file_id, caption=caption)
         elif media_type == "photo":
-            await message.answer_photo(photo=file_id, caption="📸 Из кэша ⚡")
+            await message.answer_photo(photo=file_id, caption=caption)
     except Exception as e:
         logger.error(f"Ошибка отправки из кэша: {e}")
-        # кэш протух — удалим и скажем юзеру переотправить
         await message.answer("⚠️ Кэш устарел. Отправь ссылку ещё раз.")
+
+
+def _make_caption(media_type: str, url: str) -> str:
+    """Генерит caption по типу медиа и URL"""
+    if is_story_url(url):
+        # извлекаем username из URL stories
+        match = re.search(r"stories/([^/]+)", url)
+        username = match.group(1) if match else "unknown"
+        emoji = "📹" if media_type == "video" else "📸"
+        return f"{emoji} Story @{username}"
+    elif media_type == "photo":
+        return "📸 Instagram Фото"
+    else:
+        return "🎬 Instagram Reels"
 
 
 def _get_error_text(error: str) -> str:

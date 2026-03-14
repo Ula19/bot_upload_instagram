@@ -144,8 +144,16 @@ class InstagramDownloader:
         return DownloadResult(
             file_path=file_path,
             media_type=media_type,
-            title="Instagram",
+            title=self._make_title(media_type),
         )
+
+    def _make_title(self, media_type: str) -> str:
+        """Красивый заголовок по типу медиа"""
+        if media_type == "photo":
+            return "Instagram Фото"
+        elif media_type == "gif":
+            return "Instagram GIF"
+        return "Instagram Reels"
 
     def _guess_type(self, filename: str) -> str:
         """Определяет тип медиа по имени файла"""
