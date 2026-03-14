@@ -225,16 +225,48 @@ async def process_invite_link(message: Message, state: FSMContext) -> None:
         )
 
 
-# === Удаление канала ===
+# === Удаление канала (с подтверждением) ===
 
 @router.callback_query(F.data.startswith("admin_del_"))
-async def delete_channel(callback: CallbackQuery) -> None:
-    """Удаление канала по ID"""
+async def confirm_delete_channel(callback: CallbackQuery) -> None:
+    """Показываем подтверждение перед удалением"""
     if not is_admin(callback.from_user.id):
         await callback.answer("🚫 Нет доступа")
         return
 
-    channel_id = int(callback.data.replace("admin_del_", ""))
+    channel_id = callback.data.replace("admin_del_", "")
+
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="✅ Да, удалить",
+                callback_data=f"admin_confirm_del_{channel_id}",
+            ),
+            InlineKeyboardButton(
+                text="❌ Отмена",
+                callback_data="admin_channels",
+            ),
+        ],
+    ])
+
+    await callback.message.edit_text(
+        f"⚠️ <b>Удалить канал?</b>\n\n"
+        f"ID: <code>{channel_id}</code>\n\n"
+        "Это действие нельзя отменить.",
+        reply_markup=keyboard,
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin_confirm_del_"))
+async def delete_channel(callback: CallbackQuery) -> None:
+    """Фактическое удаление канала"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("🚫 Нет доступа")
+        return
+
+    channel_id = int(callback.data.replace("admin_confirm_del_", ""))
 
     async with async_session() as session:
         removed = await remove_channel(session, channel_id)
