@@ -68,9 +68,12 @@ class SubscriptionMiddleware(BaseMiddleware):
         if not not_subscribed:
             return await handler(event, data)
 
-        # не подписан — показываем сообщение
+        # не подписан — показываем приветствие + подписку
         text = (
-            "🔒 <b>Для использования бота подпишись на каналы:</b>\n\n"
+            "👋 <b>Привет!</b>\n\n"
+            "🎬 Этот бот скачивает видео, фото и Stories "
+            "из Instagram — быстро и бесплатно!\n\n"
+            "🔒 <b>Для начала подпишись на каналы ниже:</b>\n\n"
             "После подписки нажми «✅ Проверить подписку»"
         )
         keyboard = get_subscription_keyboard(not_subscribed)
