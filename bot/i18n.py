@@ -92,13 +92,13 @@ TRANSLATIONS = {
             "👤 <b>Твой профиль</b>\n\n"
             "📛 Имя: {full_name}\n"
             "🆔 ID: <code>{user_id}</code>\n"
-            "📥 Скачиваний: {downloads}\n"
+            "📥 Скачиваний (всего): {downloads}\n"
         ),
         "uz": (
             "👤 <b>Sizning profilingiz</b>\n\n"
             "📛 Ism: {full_name}\n"
             "🆔 ID: <code>{user_id}</code>\n"
-            "📥 Yuklashlar: {downloads}\n"
+            "📥 Yuklashlar (jami): {downloads}\n"
         ),
     },
 
@@ -109,14 +109,14 @@ TRANSLATIONS = {
             "🔹 Отправь ссылку на пост Instagram — получишь видео или фото\n"
             "🔹 Поддерживаются: посты, Reels, истории\n"
             "🔹 Приватные аккаунты не поддерживаются\n\n"
-            "📩 По вопросам: @admin"
+            "📩 По вопросам: @{admin_username}"
         ),
         "uz": (
             "❓ <b>Yordam</b>\n\n"
             "🔹 Instagram post havolasini yuboring — video yoki rasm olasiz\n"
             "🔹 Qo'llab-quvvatlanadi: postlar, Reels, stories\n"
             "🔹 Yopiq akkauntlar qo'llab-quvvatlanmaydi\n\n"
-            "📩 Savollar uchun: @admin"
+            "📩 Savollar uchun: @{admin_username}"
         ),
     },
 
@@ -237,14 +237,14 @@ TRANSLATIONS = {
         "ru": (
             "📊 <b>Статистика бота</b>\n\n"
             "👥 Всего юзеров: <b>{total_users}</b>\n"
-            "🆕 За сегодня: <b>{today_users}</b>\n"
+            "🆕 Новых юзеров сегодня: <b>{today_users}</b>\n"
             "📥 Всего скачиваний: <b>{total_downloads}</b>\n"
             "📢 Каналов: <b>{total_channels}</b>"
         ),
         "uz": (
             "📊 <b>Bot statistikasi</b>\n\n"
             "👥 Jami foydalanuvchilar: <b>{total_users}</b>\n"
-            "🆕 Bugun: <b>{today_users}</b>\n"
+            "🆕 Bugungi yangi foydalanuvchilar: <b>{today_users}</b>\n"
             "📥 Jami yuklashlar: <b>{total_downloads}</b>\n"
             "📢 Kanallar: <b>{total_channels}</b>"
         ),

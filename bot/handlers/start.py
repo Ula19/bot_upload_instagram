@@ -129,7 +129,7 @@ async def help_handler(callback: CallbackQuery) -> None:
         lang = await get_user_language(session, callback.from_user.id)
 
     await callback.message.edit_text(
-        t("help.text", lang),
+        t("help.text", lang, admin_username=settings.admin_username),
         reply_markup=get_back_keyboard(lang),
         parse_mode="HTML",
     )
