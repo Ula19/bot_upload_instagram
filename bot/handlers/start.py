@@ -74,10 +74,13 @@ async def open_admin_panel(callback: CallbackQuery) -> None:
         await callback.answer("🚫 Нет доступа")
         return
 
+    # читаем актуальный язык из БД
+    async with async_session() as session:
+        lang = await get_user_language(session, callback.from_user.id)
+
     await callback.message.edit_text(
-        "🔧 <b>Админ-панель</b>\n\n"
-        "Выбери действие:",
-        reply_markup=get_admin_keyboard(),
+        t("admin.title", lang),
+        reply_markup=get_admin_keyboard(lang),
     )
     await callback.answer()
 
