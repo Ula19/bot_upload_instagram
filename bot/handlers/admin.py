@@ -437,7 +437,8 @@ async def confirm_broadcast(
         user_ids = await get_all_user_ids(session)
 
     bot_info = await callback.bot.get_me()
-    user_ids = [uid for uid in user_ids if uid != bot_info.id]
+    skip_ids = {bot_info.id} | set(settings.admin_id_list)
+    user_ids = [uid for uid in user_ids if uid not in skip_ids]
 
     # рассылка батчами
     import asyncio
