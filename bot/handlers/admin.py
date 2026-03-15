@@ -18,6 +18,7 @@ from bot.database import async_session
 from bot.database.crud import (
     add_channel,
     get_active_channels,
+    get_all_user_ids,
     get_user_language,
     get_user_stats,
     remove_channel,
@@ -50,6 +51,11 @@ class AddChannelStates(StatesGroup):
     waiting_channel_id = State()
     waiting_title = State()
     waiting_invite_link = State()
+
+
+class BroadcastStates(StatesGroup):
+    waiting_message = State()
+    confirming = State()
 
 
 # === Команда /admin ===
@@ -328,3 +334,142 @@ def _normalize_channel_link(raw: str) -> str | None:
         return f"https://t.me/{raw}"
 
     return None
+
+
+# === Массовая рассылка ===
+
+@router.callback_query(F.data == "admin_broadcast")
+async def start_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
+    """Начало рассылки — просим отправить сообщение"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("🚫 Нет доступа")
+        return
+
+    lang = await _get_lang(callback.from_user.id)
+    await state.update_data(lang=lang)
+
+    await callback.message.edit_text(
+        t("admin.broadcast_prompt", lang),
+        reply_markup=get_cancel_keyboard(lang),
+    )
+    await state.set_state(BroadcastStates.waiting_message)
+    await callback.answer()
+
+
+@router.message(BroadcastStates.waiting_message)
+async def preview_broadcast(message: Message, state: FSMContext) -> None:
+    """Получаем сообщение и показываем предпросмотр"""
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+
+    # сохраняем данные сообщения
+    msg_data = {"type": "text", "text": message.text or message.caption or ""}
+    if message.photo:
+        msg_data["type"] = "photo"
+        msg_data["file_id"] = message.photo[-1].file_id
+    elif message.video:
+        msg_data["type"] = "video"
+        msg_data["file_id"] = message.video.file_id
+
+    await state.update_data(broadcast_msg=msg_data)
+
+    # показываем предпросмотр
+    confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text=t("admin.broadcast_confirm", lang),
+                callback_data="admin_broadcast_confirm",
+            ),
+            InlineKeyboardButton(
+                text=t("admin.broadcast_cancel", lang),
+                callback_data="admin_cancel",
+            ),
+        ],
+    ])
+
+    # пересылаем для предпросмотра
+    if msg_data["type"] == "photo":
+        await message.answer_photo(
+            msg_data["file_id"],
+            caption=msg_data["text"] or None,
+        )
+    elif msg_data["type"] == "video":
+        await message.answer_video(
+            msg_data["file_id"],
+            caption=msg_data["text"] or None,
+        )
+    else:
+        await message.answer(msg_data["text"])
+
+    await message.answer(
+        t("admin.broadcast_preview", lang),
+        reply_markup=confirm_kb,
+    )
+    await state.set_state(BroadcastStates.confirming)
+
+
+@router.callback_query(F.data == "admin_broadcast_confirm")
+async def confirm_broadcast(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    """Подтверждение и запуск рассылки"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("🚫 Нет доступа")
+        return
+
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    msg_data = data.get("broadcast_msg")
+    await state.clear()
+
+    if not msg_data:
+        await callback.answer("❌ Нет сообщения")
+        return
+
+    await callback.message.edit_text(t("admin.broadcast_started", lang))
+    await callback.answer()
+
+    # получаем всех юзеров
+    async with async_session() as session:
+        user_ids = await get_all_user_ids(session)
+
+    # рассылка батчами
+    import asyncio
+    bot = callback.bot
+    success = 0
+    failed = 0
+
+    for user_id in user_ids:
+        try:
+            if msg_data["type"] == "photo":
+                await bot.send_photo(
+                    user_id,
+                    msg_data["file_id"],
+                    caption=msg_data["text"] or None,
+                )
+            elif msg_data["type"] == "video":
+                await bot.send_video(
+                    user_id,
+                    msg_data["file_id"],
+                    caption=msg_data["text"] or None,
+                )
+            else:
+                await bot.send_message(user_id, msg_data["text"])
+            success += 1
+        except Exception as e:
+            logger.warning(f"Рассылка: не доставлено {user_id}: {e}")
+            failed += 1
+
+        # пауза ~30 сообщений в секунду (лимит Telegram)
+        if (success + failed) % 25 == 0:
+            await asyncio.sleep(1)
+
+    # отчёт админу
+    await callback.message.answer(
+        t("admin.broadcast_done", lang,
+          success=success, failed=failed, total=len(user_ids)),
+        reply_markup=get_admin_keyboard(lang),
+    )

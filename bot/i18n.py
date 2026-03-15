@@ -345,6 +345,52 @@ TRANSLATIONS = {
         "ru": "🔧 Админ-панель",
         "uz": "🔧 Admin panel",
     },
+    "btn.admin_broadcast": {
+        "ru": "📨 Рассылка",
+        "uz": "📨 Xabar yuborish",
+    },
+    "admin.broadcast_prompt": {
+        "ru": (
+            "📨 <b>Массовая рассылка</b>\n\n"
+            "Отправь текст/фото/видео для рассылки.\n"
+            "Поддерживается HTML-разметка."
+        ),
+        "uz": (
+            "📨 <b>Ommaviy xabar</b>\n\n"
+            "Yuborish uchun matn/rasm/video yuboring.\n"
+            "HTML formatlash qo'llab-quvvatlanadi."
+        ),
+    },
+    "admin.broadcast_preview": {
+        "ru": "👆 <b>Предпросмотр</b>\n\nОтправить это сообщение всем юзерам?",
+        "uz": "👆 <b>Oldindan ko'rish</b>\n\nBu xabarni barcha foydalanuvchilarga yuborishni xohlaysizmi?",
+    },
+    "admin.broadcast_confirm": {
+        "ru": "✅ Да, отправить",
+        "uz": "✅ Ha, yuborish",
+    },
+    "admin.broadcast_cancel": {
+        "ru": "❌ Отмена",
+        "uz": "❌ Bekor qilish",
+    },
+    "admin.broadcast_started": {
+        "ru": "📨 Рассылка запущена... Ожидай отчёт.",
+        "uz": "📨 Xabar yuborilmoqda... Hisobotni kuting.",
+    },
+    "admin.broadcast_done": {
+        "ru": (
+            "📊 <b>Рассылка завершена!</b>\n\n"
+            "✅ Доставлено: <b>{success}</b>\n"
+            "❌ Ошибок: <b>{failed}</b>\n"
+            "👥 Всего: <b>{total}</b>"
+        ),
+        "uz": (
+            "📊 <b>Xabar yuborish tugadi!</b>\n\n"
+            "✅ Yetkazildi: <b>{success}</b>\n"
+            "❌ Xatolar: <b>{failed}</b>\n"
+            "👥 Jami: <b>{total}</b>"
+        ),
+    },
 }
 
 
