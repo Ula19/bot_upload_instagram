@@ -74,10 +74,13 @@ async def open_admin_panel(callback: CallbackQuery) -> None:
         await callback.answer("🚫 Нет доступа")
         return
 
+    # читаем актуальный язык из БД
+    async with async_session() as session:
+        lang = await get_user_language(session, callback.from_user.id)
+
     await callback.message.edit_text(
-        "🔧 <b>Админ-панель</b>\n\n"
-        "Выбери действие:",
-        reply_markup=get_admin_keyboard(),
+        t("admin.title", lang),
+        reply_markup=get_admin_keyboard(lang),
     )
     await callback.answer()
 
@@ -126,7 +129,7 @@ async def help_handler(callback: CallbackQuery) -> None:
         lang = await get_user_language(session, callback.from_user.id)
 
     await callback.message.edit_text(
-        t("help.text", lang),
+        t("help.text", lang, admin_username=settings.admin_username),
         reply_markup=get_back_keyboard(lang),
         parse_mode="HTML",
     )
@@ -153,7 +156,7 @@ async def change_language(callback: CallbackQuery) -> None:
 async def set_language(callback: CallbackQuery) -> None:
     """Устанавливает язык"""
     lang = callback.data.replace("set_lang_", "")
-    if lang not in ("ru", "uz"):
+    if lang not in ("ru", "uz", "en"):
         return
 
     async with async_session() as session:

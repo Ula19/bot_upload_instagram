@@ -186,3 +186,9 @@ async def get_user_stats(session: AsyncSession) -> dict:
         "total_downloads": total_downloads,
         "total_channels": total_channels,
     }
+
+
+async def get_all_user_ids(session: AsyncSession) -> list[int]:
+    """Получить все telegram_id юзеров для рассылки"""
+    result = await session.execute(select(User.telegram_id))
+    return [row[0] for row in result.all()]

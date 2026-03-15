@@ -21,6 +21,12 @@ def get_admin_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
+                text=t("btn.admin_broadcast", lang),
+                callback_data="admin_broadcast",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text=t("btn.admin_home", lang),
                 callback_data="back_to_menu",
             ),

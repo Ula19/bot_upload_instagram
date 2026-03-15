@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Админы бота (через запятую в .env, например: 123,456)
     admin_ids: str = ""
+    admin_username: str = "admin"  # username для 'По вопросам' в помощи
 
     # Кэш скачиваний (дни)
     cache_ttl_days: int = 30
