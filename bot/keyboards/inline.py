@@ -101,6 +101,10 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
                 text="🇺🇿 O'zbek",
                 callback_data="set_lang_uz",
             ),
+            InlineKeyboardButton(
+                text="🇬🇧 English",
+                callback_data="set_lang_en",
+            ),
         ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
