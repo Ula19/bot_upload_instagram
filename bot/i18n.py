@@ -1,43 +1,8 @@
 """Мультиязычность — русский, узбекский, английский
 Использование: from bot.i18n import t
   t("start.welcome", lang="en", name="John")
-
-Кастомные эмоджи из пака tgmacicons используются в текстах сообщений
 """
-
-# кастомные эмоджи из tgmacicons (для текстов сообщений)
-E = {
-    "download": '<tg-emoji emoji-id="5258336354642697821">⬇️</tg-emoji>',
-    "profile":  '<tg-emoji emoji-id="5258362837411045098">👤</tg-emoji>',
-    "book":     '<tg-emoji emoji-id="5258328383183396223">📖</tg-emoji>',
-    "star":     '<tg-emoji emoji-id="5258185631355378853">⭐️</tg-emoji>',
-    "folder":   '<tg-emoji emoji-id="5258514780469075716">📂</tg-emoji>',
-    "cross":    '<tg-emoji emoji-id="5258226313285607065">❌</tg-emoji>',
-    "check":    '<tg-emoji emoji-id="5260726538302660868">✅</tg-emoji>',
-    "megaphone":'<tg-emoji emoji-id="5260268501515377807">📣</tg-emoji>',
-    "camera":   '<tg-emoji emoji-id="5258205968025525531">📸</tg-emoji>',
-    "link":     '<tg-emoji emoji-id="5260730055880876557">⛓</tg-emoji>',
-    "lock":     '<tg-emoji emoji-id="5258476306152038031">🔒</tg-emoji>',
-    "clock":    '<tg-emoji emoji-id="5258258882022612173">⏲</tg-emoji>',
-    "chart":    '<tg-emoji emoji-id="5258391025281408576">📈</tg-emoji>',
-    "gear":     '<tg-emoji emoji-id="5258096772776991776">⚙</tg-emoji>',
-    "home":     '<tg-emoji emoji-id="5257963315258204021">🏘</tg-emoji>',
-    "plus":     '<tg-emoji emoji-id="5258108352008823107">➕</tg-emoji>',
-    "plane":    '<tg-emoji emoji-id="5258115571848846212">✈️</tg-emoji>',
-    "pin":      '<tg-emoji emoji-id="5258461531464539536">📌</tg-emoji>',
-    "video":    '<tg-emoji emoji-id="5258077307985207053">📹</tg-emoji>',
-    "users":    '<tg-emoji emoji-id="5258513401784573443">👥</tg-emoji>',
-    "info":     '<tg-emoji emoji-id="5258503720928288433">ℹ️</tg-emoji>',
-    "bulb":     '<tg-emoji emoji-id="5258216851472654189">💡</tg-emoji>',
-    "warning":  '<tg-emoji emoji-id="5258474669769497337">❗️</tg-emoji>',
-    "back":     '<tg-emoji emoji-id="5258236805890710909">⬅️</tg-emoji>',
-    "package":  '<tg-emoji emoji-id="5258134813302332906">📦</tg-emoji>',
-    "edit":     '<tg-emoji emoji-id="5258331647358540449">✍️</tg-emoji>',
-    "bot":      '<tg-emoji emoji-id="5258093637450866522">🤖</tg-emoji>',
-    "refresh":  '<tg-emoji emoji-id="5258420634785947640">🔄</tg-emoji>',
-    "eye":      '<tg-emoji emoji-id="5253959125838090076">👁</tg-emoji>',
-    "search":   '<tg-emoji emoji-id="5429571366384842791">🔎</tg-emoji>',
-}
+from bot.emojis import E
 
 
 TRANSLATIONS = {
@@ -69,31 +34,31 @@ TRANSLATIONS = {
         ),
     },
 
-    # === Кнопки главного меню (Unicode — кастомные тут не работают) ===
+    # === Кнопки главного меню (иконки через icon_custom_emoji_id) ===
     "btn.download": {
-        "ru": "📥 Скачать видео",
-        "uz": "📥 Video yuklab olish",
-        "en": "📥 Download video",
+        "ru": "Скачать видео",
+        "uz": "Video yuklab olish",
+        "en": "Download video",
     },
     "btn.profile": {
-        "ru": "👤 Мой профиль",
-        "uz": "👤 Mening profilim",
-        "en": "👤 My profile",
+        "ru": "Мой профиль",
+        "uz": "Mening profilim",
+        "en": "My profile",
     },
     "btn.help": {
-        "ru": "❓ Помощь",
-        "uz": "❓ Yordam",
-        "en": "❓ Help",
+        "ru": "Помощь",
+        "uz": "Yordam",
+        "en": "Help",
     },
     "btn.back": {
-        "ru": "◀️ Назад",
-        "uz": "◀️ Orqaga",
-        "en": "◀️ Back",
+        "ru": "Назад",
+        "uz": "Orqaga",
+        "en": "Back",
     },
     "btn.language": {
-        "ru": "🌐 Сменить язык",
-        "uz": "🌐 Tilni o'zgartirish",
-        "en": "🌐 Change language",
+        "ru": "Сменить язык",
+        "uz": "Tilni o'zgartirish",
+        "en": "Change language",
     },
 
     # === Скачивание ===
@@ -254,9 +219,9 @@ TRANSLATIONS = {
         ),
     },
     "btn.check_sub": {
-        "ru": "✅ Проверить подписку",
-        "uz": "✅ Obunani tekshirish",
-        "en": "✅ Check subscription",
+        "ru": "Проверить подписку",
+        "uz": "Obunani tekshirish",
+        "en": "Check subscription",
     },
     "sub.check_alert_fail": {
         "ru": "❌ Подпишись на все каналы!",
@@ -448,54 +413,54 @@ TRANSLATIONS = {
         "en": f"{E['cross']} Could not parse the link.\nTry again:",
     },
     "btn.admin_stats": {
-        "ru": "📊 Статистика",
-        "uz": "📊 Statistika",
-        "en": "📊 Statistics",
+        "ru": "Статистика",
+        "uz": "Statistika",
+        "en": "Statistics",
     },
     "btn.admin_channels": {
-        "ru": "📢 Каналы",
-        "uz": "📢 Kanallar",
-        "en": "📢 Channels",
+        "ru": "Каналы",
+        "uz": "Kanallar",
+        "en": "Channels",
     },
     "btn.admin_home": {
-        "ru": "🏠 Главное меню",
-        "uz": "🏠 Bosh menyu",
-        "en": "🏠 Main menu",
+        "ru": "Главное меню",
+        "uz": "Bosh menyu",
+        "en": "Main menu",
     },
     "btn.admin_add": {
-        "ru": "➕ Добавить канал",
-        "uz": "➕ Kanal qo'shish",
-        "en": "➕ Add channel",
+        "ru": "Добавить канал",
+        "uz": "Kanal qo'shish",
+        "en": "Add channel",
     },
     "btn.admin_back": {
-        "ru": "◀️ Назад",
-        "uz": "◀️ Orqaga",
-        "en": "◀️ Back",
+        "ru": "Назад",
+        "uz": "Orqaga",
+        "en": "Back",
     },
     "btn.admin_cancel": {
-        "ru": "❌ Отмена",
-        "uz": "❌ Bekor qilish",
-        "en": "❌ Cancel",
+        "ru": "Отмена",
+        "uz": "Bekor qilish",
+        "en": "Cancel",
     },
     "btn.admin_confirm_del": {
-        "ru": "✅ Да, удалить",
-        "uz": "✅ Ha, o'chirish",
-        "en": "✅ Yes, delete",
+        "ru": "Да, удалить",
+        "uz": "Ha, o'chirish",
+        "en": "Yes, delete",
     },
     "btn.admin_cancel_del": {
-        "ru": "❌ Отмена",
-        "uz": "❌ Bekor qilish",
-        "en": "❌ Cancel",
+        "ru": "Отмена",
+        "uz": "Bekor qilish",
+        "en": "Cancel",
     },
     "btn.admin_panel": {
-        "ru": "⚙️ Админ-панель",
-        "uz": "⚙️ Admin panel",
-        "en": "⚙️ Admin panel",
+        "ru": "Админ-панель",
+        "uz": "Admin panel",
+        "en": "Admin panel",
     },
     "btn.admin_broadcast": {
-        "ru": "📨 Рассылка",
-        "uz": "📨 Xabar yuborish",
-        "en": "📨 Broadcast",
+        "ru": "Рассылка",
+        "uz": "Xabar yuborish",
+        "en": "Broadcast",
     },
     "admin.broadcast_prompt": {
         "ru": (
