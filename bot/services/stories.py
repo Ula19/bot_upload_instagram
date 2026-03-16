@@ -1,23 +1,50 @@
-"""Сервис скачивания Instagram Stories — через private API + sessionid"""
+"""Сервис скачивания Instagram Stories — через instaloader
+Instaloader сам управляет сессиями и обходит rate-limit.
+Требует логин/пароль Instagram-аккаунта в .env
+"""
 import asyncio
 import logging
 import os
 import re
-import tempfile
 
-import aiohttp
+import instaloader
 
 from bot.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Instagram private API — мобильные заголовки
-INSTAGRAM_HEADERS = {
-    "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100)",
-    "X-IG-App-ID": "936619743392459",
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+# глобальный экземпляр instaloader (с залогиненной сессией)
+_loader: instaloader.Instaloader | None = None
+
+
+def _get_loader() -> instaloader.Instaloader:
+    """Создаёт и логинит instaloader (один раз)"""
+    global _loader
+    if _loader is not None:
+        return _loader
+
+    L = instaloader.Instaloader(
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False,
+    )
+
+    # пробуем загрузить сохранённую сессию
+    username = settings.instagram_username
+    try:
+        L.load_session_from_file(username)
+        logger.info(f"Instaloader: сессия загружена для @{username}")
+    except FileNotFoundError:
+        # сессии нет — логинимся
+        logger.info(f"Instaloader: логинимся как @{username}...")
+        L.login(username, settings.instagram_password)
+        L.save_session_to_file()
+        logger.info(f"Instaloader: сессия сохранена для @{username}")
+
+    _loader = L
+    return _loader
 
 
 def parse_story_url(url: str) -> tuple[str, str]:
@@ -35,144 +62,57 @@ def is_story_url(url: str) -> bool:
     return bool(re.search(r"instagram\.com/stories/[^/]+/\d+", url))
 
 
-# кэш user_id чтобы не запрашивать повторно
-_user_id_cache: dict[str, str] = {}
+def _download_story_sync(url: str, download_dir: str) -> dict:
+    """Синхронная функция скачивания Story через instaloader"""
+    username, story_id = parse_story_url(url)
+    L = _get_loader()
 
+    # получаем профиль
+    profile = instaloader.Profile.from_username(L.context, username)
 
-async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
-    """Получает user_id по username через private API (с ретраем при 429)"""
-    # проверяем кэш
-    if username in _user_id_cache:
-        logger.info(f"@{username} → user_id={_user_id_cache[username]} (кэш)")
-        return _user_id_cache[username]
+    # ищем нужную историю среди всех stories юзера
+    stories = L.get_stories(userids=[profile.userid])
 
-    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
-    cookies = {"sessionid": settings.instagram_session_id}
-    proxy = settings.instagram_proxy or None
+    for story in stories:
+        for item in story.get_items():
+            if str(item.mediaid) == story_id:
+                # определяем тип
+                if item.is_video:
+                    media_type = "video"
+                    ext = ".mp4"
+                    media_url = item.video_url
+                else:
+                    media_type = "photo"
+                    ext = ".jpg"
+                    media_url = item.url
 
-    # ретрай при 429 с нарастающей задержкой
-    max_retries = 3
-    delays = [5, 10, 20]
+                # скачиваем файл
+                file_path = os.path.join(
+                    download_dir, f"story_{username}_{story_id}{ext}"
+                )
 
-    for attempt in range(max_retries + 1):
-        async with session.get(
-            url, headers=INSTAGRAM_HEADERS, cookies=cookies,
-            timeout=aiohttp.ClientTimeout(total=10),
-            proxy=proxy,
-        ) as resp:
-            if resp.status == 429:
-                if attempt < max_retries:
-                    delay = delays[attempt]
-                    logger.warning(f"429 от Instagram, ждём {delay}с (попытка {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(delay)
-                    continue
-                raise RuntimeError(f"Instagram блокирует запросы (429). Попробуй позже.")
-            if resp.status != 200:
-                raise RuntimeError(f"Не удалось получить профиль @{username}: HTTP {resp.status}")
-            data = await resp.json()
-            break
+                # скачиваем через requests (из контекста instaloader)
+                response = L.context._session.get(media_url, stream=True)
+                response.raise_for_status()
 
-    user = data.get("data", {}).get("user", {})
-    user_id = user.get("id")
-    if not user_id:
-        raise RuntimeError(f"Пользователь @{username} не найден")
+                with open(file_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
 
-    # сохраняем в кэш
-    _user_id_cache[username] = user_id
-    logger.info(f"@{username} → user_id={user_id}")
-    return user_id
+                size_mb = os.path.getsize(file_path) / (1024 * 1024)
+                logger.info(
+                    f"Story скачана: {file_path} ({size_mb:.1f} МБ, {media_type})"
+                )
 
+                return {
+                    "file_path": file_path,
+                    "media_type": media_type,
+                    "title": f"Story @{username}",
+                }
 
-async def get_story_media(
-    session: aiohttp.ClientSession, user_id: str, story_id: str
-) -> dict:
-    """Получает медиа конкретной истории"""
-    url = f"https://i.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
-    cookies = {"sessionid": settings.instagram_session_id}
-    proxy = settings.instagram_proxy or None
-
-    async with session.get(
-        url, headers=INSTAGRAM_HEADERS, cookies=cookies,
-        timeout=aiohttp.ClientTimeout(total=10),
-        proxy=proxy,
-    ) as resp:
-        if resp.status != 200:
-            raise RuntimeError(f"Не удалось получить истории: HTTP {resp.status}")
-        data = await resp.json()
-
-    reels = data.get("reels", {})
-    reel = reels.get(user_id, {})
-    items = reel.get("items", [])
-
-    if not items:
-        raise RuntimeError("Истории не найдены или уже истекли (24 часа)")
-
-    # ищем конкретную историю по story_id
-    for item in items:
-        if str(item.get("pk")) == story_id or str(item.get("id", "")).startswith(story_id):
-            return item
-
-    # если конкретный ID не нашли — возвращаем по индексу (фоллбэк)
-    logger.warning(f"Story {story_id} не найден, отправляем последнюю")
-    return items[-1]
+    raise RuntimeError("История не найдена или уже истекла (24 часа)")
 
 
 async def download_story(url: str, download_dir: str) -> dict:
-    """Скачивает историю и возвращает {file_path, media_type}"""
-    if not settings.instagram_session_id:
-        raise RuntimeError(
-            "Для скачивания Stories нужна авторизация.\n"
-            "Администратор должен добавить INSTAGRAM_SESSION_ID в .env"
-        )
-
-    username, story_id = parse_story_url(url)
-    proxy = settings.instagram_proxy or None
-    logger.info(f"Stories: proxy={'да (' + proxy + ')' if proxy else 'нет'}")
-
-    async with aiohttp.ClientSession() as session:
-        # получаем user_id
-        user_id = await get_user_id(session, username)
-
-        # получаем медиа истории
-        item = await get_story_media(session, user_id, story_id)
-
-        # определяем тип и URL медиа
-        media_type = "video" if item.get("video_versions") else "photo"
-
-        if media_type == "video":
-            # берём лучшее качество (первый элемент)
-            versions = item["video_versions"]
-            media_url = versions[0]["url"]
-            ext = ".mp4"
-        else:
-            # фото — берём лучшее качество
-            candidates = item.get("image_versions2", {}).get("candidates", [])
-            if not candidates:
-                raise RuntimeError("Не удалось найти фото в истории")
-            media_url = candidates[0]["url"]
-            ext = ".jpg"
-
-        # скачиваем файл
-        file_path = os.path.join(download_dir, f"story_{username}_{story_id}{ext}")
-
-        async with session.get(
-            media_url, timeout=aiohttp.ClientTimeout(total=30)
-        ) as resp:
-            if resp.status != 200:
-                raise RuntimeError(f"Не удалось скачать медиа: HTTP {resp.status}")
-            content = await resp.read()
-
-            if len(content) > 50 * 1024 * 1024:
-                raise RuntimeError("Файл больше 50 МБ — лимит Telegram")
-
-            with open(file_path, "wb") as f:
-                f.write(content)
-
-        size_mb = len(content) / (1024 * 1024)
-        logger.info(f"Story скачана: {file_path} ({size_mb:.1f} МБ, {media_type})")
-
-        return {
-            "file_path": file_path,
-            "media_type": media_type,
-            "title": f"Story @{username}",
-        }
+    """Асинхронная обёртка — запускает instaloader в отдельном потоке"""
+    return await asyncio.to_thread(_download_story_sync, url, download_dir)

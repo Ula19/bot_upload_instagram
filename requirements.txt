@@ -9,3 +9,4 @@ pydantic-settings==2.8.1
 # Утилиты
 aiofiles==24.1.0
 python-dotenv==1.0.1
+instaloader==4.13.1
