@@ -1,4 +1,4 @@
-"""Клавиатуры админ-панели"""
+"""Клавиатуры админ-панели — цветные кнопки с премиум-эмоджи"""
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot.emojis import E_ID
@@ -12,7 +12,7 @@ def get_admin_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text=t("btn.admin_stats", lang),
                 callback_data="admin_stats",
-                style="success",
+                style="primary",
                 icon_custom_emoji_id=E_ID["chart"],
             ),
         ],
@@ -20,7 +20,7 @@ def get_admin_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text=t("btn.admin_channels", lang),
                 callback_data="admin_channels",
-                style="success",
+                style="primary",
                 icon_custom_emoji_id=E_ID["megaphone"],
             ),
         ],
@@ -28,7 +28,7 @@ def get_admin_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text=t("btn.admin_broadcast", lang),
                 callback_data="admin_broadcast",
-                style="success",
+                style="danger",
                 icon_custom_emoji_id=E_ID["plane"],
             ),
         ],
@@ -36,7 +36,7 @@ def get_admin_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text=t("btn.admin_home", lang),
                 callback_data="back_to_menu",
-                style="danger",
+                style="success",
                 icon_custom_emoji_id=E_ID["home"],
             ),
         ],
@@ -54,7 +54,7 @@ def get_channels_keyboard(
         for ch in channels:
             buttons.append([
                 InlineKeyboardButton(
-                    text=f"🗑 {ch.title}",
+                    text=ch.title,
                     callback_data=f"admin_del_{ch.channel_id}",
                     style="danger",
                     icon_custom_emoji_id=E_ID["trash"],

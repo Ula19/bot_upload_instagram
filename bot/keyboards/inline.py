@@ -32,7 +32,7 @@ def get_start_keyboard(
                 text=t("btn.help", lang),
                 callback_data="help",
                 style="success",
-                icon_custom_emoji_id=E_ID["book"],
+                icon_custom_emoji_id=E_ID["info"],
             ),
         ],
         [
@@ -40,7 +40,7 @@ def get_start_keyboard(
                 text=t("btn.language", lang),
                 callback_data="change_language",
                 style="success",
-                icon_custom_emoji_id=E_ID["globe"],
+                icon_custom_emoji_id=E_ID["gear"],
             ),
         ],
     ]
@@ -52,7 +52,7 @@ def get_start_keyboard(
                 text=t("btn.admin_panel", lang),
                 callback_data="admin_panel",
                 style="danger",
-                icon_custom_emoji_id=E_ID["gear"],
+                icon_custom_emoji_id=E_ID["lock"],
             ),
         ])
 
@@ -82,7 +82,7 @@ def get_subscription_keyboard(
     for ch in channels:
         buttons.append([
             InlineKeyboardButton(
-                text=f"🔔 {ch['title']}",
+                text=ch['title'],
                 url=ch["invite_link"],
                 style="primary",
                 icon_custom_emoji_id=E_ID["megaphone"],
@@ -100,23 +100,26 @@ def get_subscription_keyboard(
 
 
 def get_language_keyboard() -> InlineKeyboardMarkup:
-    """Кнопки выбора языка"""
+    """Кнопки выбора языка с премиум-флагами"""
     buttons = [
         [
             InlineKeyboardButton(
-                text="🇷🇺 Русский",
+                text="Русский",
                 callback_data="set_lang_ru",
-                style="success",
+                style="primary",
+                icon_custom_emoji_id=E_ID["flag_ru"],
             ),
             InlineKeyboardButton(
-                text="🇺🇿 O'zbek",
+                text="O'zbek",
                 callback_data="set_lang_uz",
-                style="success",
+                style="primary",
+                icon_custom_emoji_id=E_ID["flag_uz"],
             ),
             InlineKeyboardButton(
-                text="🇬🇧 English",
+                text="English",
                 callback_data="set_lang_en",
-                style="success",
+                style="primary",
+                icon_custom_emoji_id=E_ID["flag_gb"],
             ),
         ],
     ]

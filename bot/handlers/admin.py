@@ -262,13 +262,13 @@ async def confirm_delete_channel(callback: CallbackQuery) -> None:
             InlineKeyboardButton(
                 text=t("btn.admin_confirm_del", lang),
                 callback_data=f"admin_confirm_del_{channel_id}",
-                style="success",
+                style="danger",
                 icon_custom_emoji_id=E_ID["check"],
             ),
             InlineKeyboardButton(
                 text=t("btn.admin_cancel_del", lang),
                 callback_data="admin_channels",
-                style="danger",
+                style="success",
                 icon_custom_emoji_id=E_ID["cross"],
             ),
         ],
