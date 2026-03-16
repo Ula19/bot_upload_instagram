@@ -1,50 +1,15 @@
-"""Сервис скачивания Instagram Stories — через instaloader
-Instaloader сам управляет сессиями и обходит rate-limit.
-Требует логин/пароль Instagram-аккаунта в .env
+"""Сервис скачивания Instagram Stories — через yt-dlp
+yt-dlp умеет скачивать Stories с авторизацией через cookies (sessionid).
 """
 import asyncio
 import logging
 import os
 import re
-
-import instaloader
+import tempfile
 
 from bot.config import settings
 
 logger = logging.getLogger(__name__)
-
-# глобальный экземпляр instaloader (с залогиненной сессией)
-_loader: instaloader.Instaloader | None = None
-
-
-def _get_loader() -> instaloader.Instaloader:
-    """Создаёт и логинит instaloader (один раз)"""
-    global _loader
-    if _loader is not None:
-        return _loader
-
-    L = instaloader.Instaloader(
-        download_video_thumbnails=False,
-        download_geotags=False,
-        download_comments=False,
-        save_metadata=False,
-        compress_json=False,
-    )
-
-    # пробуем загрузить сохранённую сессию
-    username = settings.instagram_username
-    try:
-        L.load_session_from_file(username)
-        logger.info(f"Instaloader: сессия загружена для @{username}")
-    except FileNotFoundError:
-        # сессии нет — логинимся
-        logger.info(f"Instaloader: логинимся как @{username}...")
-        L.login(username, settings.instagram_password)
-        L.save_session_to_file()
-        logger.info(f"Instaloader: сессия сохранена для @{username}")
-
-    _loader = L
-    return _loader
 
 
 def parse_story_url(url: str) -> tuple[str, str]:
@@ -62,57 +27,73 @@ def is_story_url(url: str) -> bool:
     return bool(re.search(r"instagram\.com/stories/[^/]+/\d+", url))
 
 
+def _create_cookie_file(download_dir: str) -> str:
+    """Создаёт Netscape cookies файл с sessionid для yt-dlp"""
+    cookie_path = os.path.join(download_dir, "cookies.txt")
+    with open(cookie_path, "w") as f:
+        f.write("# Netscape HTTP Cookie File\n")
+        f.write(
+            f".instagram.com\tTRUE\t/\tTRUE\t0\tsessionid\t{settings.instagram_session_id}\n"
+        )
+    return cookie_path
+
+
 def _download_story_sync(url: str, download_dir: str) -> dict:
-    """Синхронная функция скачивания Story через instaloader"""
+    """Синхронная функция скачивания Story через yt-dlp"""
+    import yt_dlp
+
     username, story_id = parse_story_url(url)
-    L = _get_loader()
 
-    # получаем профиль
-    profile = instaloader.Profile.from_username(L.context, username)
+    # файл куков для авторизации
+    cookie_file = _create_cookie_file(download_dir)
 
-    # ищем нужную историю среди всех stories юзера
-    stories = L.get_stories(userids=[profile.userid])
+    # шаблон имени файла
+    output_template = os.path.join(download_dir, f"story_{username}_{story_id}.%(ext)s")
 
-    for story in stories:
-        for item in story.get_items():
-            if str(item.mediaid) == story_id:
-                # определяем тип
-                if item.is_video:
-                    media_type = "video"
-                    ext = ".mp4"
-                    media_url = item.video_url
-                else:
-                    media_type = "photo"
-                    ext = ".jpg"
-                    media_url = item.url
+    ydl_opts = {
+        "outtmpl": output_template,
+        "cookiefile": cookie_file,
+        "quiet": True,
+        "no_warnings": True,
+        "max_filesize": 50 * 1024 * 1024,  # лимит Telegram 50 МБ
+        "socket_timeout": 30,
+    }
 
-                # скачиваем файл
-                file_path = os.path.join(
-                    download_dir, f"story_{username}_{story_id}{ext}"
-                )
+    # если есть прокси — используем
+    if settings.instagram_proxy:
+        ydl_opts["proxy"] = settings.instagram_proxy
 
-                # скачиваем через requests (из контекста instaloader)
-                response = L.context._session.get(media_url, stream=True)
-                response.raise_for_status()
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
 
-                with open(file_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+            # определяем путь к скачанному файлу
+            if info.get("requested_downloads"):
+                file_path = info["requested_downloads"][0]["filepath"]
+            else:
+                file_path = ydl.prepare_filename(info)
 
-                size_mb = os.path.getsize(file_path) / (1024 * 1024)
-                logger.info(
-                    f"Story скачана: {file_path} ({size_mb:.1f} МБ, {media_type})"
-                )
+            # определяем тип медиа
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext in (".mp4", ".webm", ".mkv"):
+                media_type = "video"
+            else:
+                media_type = "photo"
 
-                return {
-                    "file_path": file_path,
-                    "media_type": media_type,
-                    "title": f"Story @{username}",
-                }
+            size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            logger.info(f"Story скачана (yt-dlp): {file_path} ({size_mb:.1f} МБ, {media_type})")
 
-    raise RuntimeError("История не найдена или уже истекла (24 часа)")
+            return {
+                "file_path": file_path,
+                "media_type": media_type,
+                "title": f"Story @{username}",
+            }
+    finally:
+        # удаляем файл куков
+        if os.path.exists(cookie_file):
+            os.remove(cookie_file)
 
 
 async def download_story(url: str, download_dir: str) -> dict:
-    """Асинхронная обёртка — запускает instaloader в отдельном потоке"""
+    """Асинхронная обёртка — запускает yt-dlp в отдельном потоке"""
     return await asyncio.to_thread(_download_story_sync, url, download_dir)
