@@ -9,27 +9,27 @@ TRANSLATIONS = {
     # === /start ===
     "start.welcome": {
         "ru": (
-            f"👋 <b>Привет, {{name}}!</b>\n\n"
+            f"{E['bot']} <b>Привет, {{name}}!</b>\n\n"
             f"{E['video']} Я помогу тебе скачать видео и фото из Instagram.\n\n"
             f"{E['pin']} <b>Как пользоваться:</b>\n"
             f"Просто отправь мне ссылку на пост, Reels или историю — "
-            f"и я пришлю тебе медиа! 🚀\n\n"
+            f"и я пришлю тебе медиа! {E['plane']}\n\n"
             f"Выбери действие ниже:"
         ),
         "uz": (
-            f"👋 <b>Salom, {{name}}!</b>\n\n"
+            f"{E['bot']} <b>Salom, {{name}}!</b>\n\n"
             f"{E['video']} Instagram'dan video va rasm yuklab olishda yordam beraman.\n\n"
             f"{E['pin']} <b>Qanday foydalanish:</b>\n"
             f"Menga post, Reels yoki story havolasini yuboring — "
-            f"men sizga media faylni yuboraman! 🚀\n\n"
+            f"men sizga media faylni yuboraman! {E['plane']}\n\n"
             f"Quyidagi tugmalardan birini tanlang:"
         ),
         "en": (
-            f"👋 <b>Hello, {{name}}!</b>\n\n"
+            f"{E['bot']} <b>Hello, {{name}}!</b>\n\n"
             f"{E['video']} I'll help you download videos and photos from Instagram.\n\n"
             f"{E['pin']} <b>How to use:</b>\n"
             f"Just send me a link to a post, Reels or Story — "
-            f"and I'll send you the media! 🚀\n\n"
+            f"and I'll send you the media! {E['plane']}\n\n"
             f"Choose an action below:"
         ),
     },
@@ -166,21 +166,21 @@ TRANSLATIONS = {
     # === Подписка ===
     "sub.welcome": {
         "ru": (
-            f"👋 <b>Привет!</b>\n\n"
+            f"{E['bot']} <b>Привет!</b>\n\n"
             f"{E['video']} Этот бот скачивает видео, фото и Stories "
             f"из Instagram — быстро и бесплатно!\n\n"
             f"{E['lock']} <b>Для начала подпишись на каналы ниже:</b>\n\n"
             f"После подписки нажми «{E['check']} Проверить подписку»"
         ),
         "uz": (
-            f"👋 <b>Salom!</b>\n\n"
+            f"{E['bot']} <b>Salom!</b>\n\n"
             f"{E['video']} Bu bot Instagram'dan video, rasm va Stories "
             f"yuklab oladi — tez va bepul!\n\n"
             f"{E['lock']} <b>Boshlash uchun quyidagi kanallarga obuna bo'ling:</b>\n\n"
             f"Obuna bo'lgandan keyin «{E['check']} Obunani tekshirish» tugmasini bosing"
         ),
         "en": (
-            f"👋 <b>Hello!</b>\n\n"
+            f"{E['bot']} <b>Hello!</b>\n\n"
             f"{E['video']} This bot downloads videos, photos and Stories "
             f"from Instagram — fast and free!\n\n"
             f"{E['lock']} <b>To start, subscribe to the channels below:</b>\n\n"
@@ -204,17 +204,17 @@ TRANSLATIONS = {
     "sub.success": {
         "ru": (
             f"{E['check']} <b>Отлично, {{name}}!</b>\n\n"
-            f"Теперь ты можешь пользоваться ботом! 🚀\n\n"
+            f"Теперь ты можешь пользоваться ботом! {E['plane']}\n\n"
             f"Отправь ссылку на пост, Reels или историю Instagram."
         ),
         "uz": (
             f"{E['check']} <b>Ajoyib, {{name}}!</b>\n\n"
-            f"Endi siz botdan foydalanishingiz mumkin! 🚀\n\n"
+            f"Endi siz botdan foydalanishingiz mumkin! {E['plane']}\n\n"
             f"Instagram post, Reels yoki story havolasini yuboring."
         ),
         "en": (
             f"{E['check']} <b>Great, {{name}}!</b>\n\n"
-            f"You can now use the bot! 🚀\n\n"
+            f"You can now use the bot! {E['plane']}\n\n"
             f"Send a link to an Instagram post, Reels or Story."
         ),
     },
@@ -224,19 +224,19 @@ TRANSLATIONS = {
         "en": "Check subscription",
     },
     "sub.check_alert_fail": {
-        "ru": "❌ Подпишись на все каналы!",
-        "uz": "❌ Barcha kanallarga obuna bo'ling!",
-        "en": "❌ Subscribe to all channels!",
+        "ru": "Подпишись на все каналы!",
+        "uz": "Barcha kanallarga obuna bo'ling!",
+        "en": "Subscribe to all channels!",
     },
     "sub.check_alert_ok": {
-        "ru": "✅ Подписка подтверждена!",
-        "uz": "✅ Obuna tasdiqlandi!",
-        "en": "✅ Subscription confirmed!",
+        "ru": "Подписка подтверждена!",
+        "uz": "Obuna tasdiqlandi!",
+        "en": "Subscription confirmed!",
     },
     "sub.not_required": {
-        "ru": "✅ Подписка не требуется!",
-        "uz": "✅ Obuna talab qilinmaydi!",
-        "en": "✅ No subscription required!",
+        "ru": "Подписка не требуется!",
+        "uz": "Obuna talab qilinmaydi!",
+        "en": "No subscription required!",
     },
 
     # === Ошибки ===
@@ -288,9 +288,9 @@ TRANSLATIONS = {
 
     # === Выбор языка ===
     "lang.choose": {
-        "ru": "🌐 <b>Выберите язык:</b>",
-        "uz": "🌐 <b>Tilni tanlang:</b>",
-        "en": "🌐 <b>Choose language:</b>",
+        "ru": f"{E['gear']} <b>Выберите язык:</b>",
+        "uz": f"{E['gear']} <b>Tilni tanlang:</b>",
+        "en": f"{E['gear']} <b>Choose language:</b>",
     },
     "lang.changed": {
         "ru": f"{E['check']} Язык изменён на русский",
@@ -485,14 +485,14 @@ TRANSLATIONS = {
         "en": f"{E['eye']} <b>Preview</b>\n\nSend this message to all users?",
     },
     "admin.broadcast_confirm": {
-        "ru": "✅ Да, отправить",
-        "uz": "✅ Ha, yuborish",
-        "en": "✅ Yes, send",
+        "ru": "Да, отправить",
+        "uz": "Ha, yuborish",
+        "en": "Yes, send",
     },
     "admin.broadcast_cancel": {
-        "ru": "❌ Отмена",
-        "uz": "❌ Bekor qilish",
-        "en": "❌ Cancel",
+        "ru": "Отмена",
+        "uz": "Bekor qilish",
+        "en": "Cancel",
     },
     "admin.broadcast_started": {
         "ru": f"{E['plane']} Рассылка запущена... Ожидай отчёт.",
