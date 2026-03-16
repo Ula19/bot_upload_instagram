@@ -48,6 +48,7 @@ async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
 
     url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
     cookies = {"sessionid": settings.instagram_session_id}
+    proxy = settings.instagram_proxy or None
 
     # ретрай при 429 с нарастающей задержкой
     max_retries = 3
@@ -57,6 +58,7 @@ async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
         async with session.get(
             url, headers=INSTAGRAM_HEADERS, cookies=cookies,
             timeout=aiohttp.ClientTimeout(total=10),
+            proxy=proxy,
         ) as resp:
             if resp.status == 429:
                 if attempt < max_retries:
@@ -87,10 +89,12 @@ async def get_story_media(
     """Получает медиа конкретной истории"""
     url = f"https://i.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
     cookies = {"sessionid": settings.instagram_session_id}
+    proxy = settings.instagram_proxy or None
 
     async with session.get(
         url, headers=INSTAGRAM_HEADERS, cookies=cookies,
         timeout=aiohttp.ClientTimeout(total=10),
+        proxy=proxy,
     ) as resp:
         if resp.status != 200:
             raise RuntimeError(f"Не удалось получить истории: HTTP {resp.status}")
