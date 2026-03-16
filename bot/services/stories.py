@@ -1,4 +1,5 @@
 """Сервис скачивания Instagram Stories — через private API + sessionid"""
+import asyncio
 import logging
 import os
 import re
@@ -34,24 +35,48 @@ def is_story_url(url: str) -> bool:
     return bool(re.search(r"instagram\.com/stories/[^/]+/\d+", url))
 
 
+# кэш user_id чтобы не запрашивать повторно
+_user_id_cache: dict[str, str] = {}
+
+
 async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
-    """Получает user_id по username через private API"""
+    """Получает user_id по username через private API (с ретраем при 429)"""
+    # проверяем кэш
+    if username in _user_id_cache:
+        logger.info(f"@{username} → user_id={_user_id_cache[username]} (кэш)")
+        return _user_id_cache[username]
+
     url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
     cookies = {"sessionid": settings.instagram_session_id}
 
-    async with session.get(
-        url, headers=INSTAGRAM_HEADERS, cookies=cookies,
-        timeout=aiohttp.ClientTimeout(total=10),
-    ) as resp:
-        if resp.status != 200:
-            raise RuntimeError(f"Не удалось получить профиль @{username}: HTTP {resp.status}")
-        data = await resp.json()
+    # ретрай при 429 с нарастающей задержкой
+    max_retries = 3
+    delays = [5, 10, 20]
+
+    for attempt in range(max_retries + 1):
+        async with session.get(
+            url, headers=INSTAGRAM_HEADERS, cookies=cookies,
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            if resp.status == 429:
+                if attempt < max_retries:
+                    delay = delays[attempt]
+                    logger.warning(f"429 от Instagram, ждём {delay}с (попытка {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                raise RuntimeError(f"Instagram блокирует запросы (429). Попробуй позже.")
+            if resp.status != 200:
+                raise RuntimeError(f"Не удалось получить профиль @{username}: HTTP {resp.status}")
+            data = await resp.json()
+            break
 
     user = data.get("data", {}).get("user", {})
     user_id = user.get("id")
     if not user_id:
         raise RuntimeError(f"Пользователь @{username} не найден")
 
+    # сохраняем в кэш
+    _user_id_cache[username] = user_id
     logger.info(f"@{username} → user_id={user_id}")
     return user_id
 
