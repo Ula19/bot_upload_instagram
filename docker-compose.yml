@@ -6,6 +6,8 @@ services:
     env_file: .env
     volumes:
       - ./instaloader_sessions:/root/.config/instaloader
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
