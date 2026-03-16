@@ -12,10 +12,11 @@ from bot.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Instagram private API — мобильные заголовки
+# Instagram API через www (i.instagram.com блокируется на серверных IP)
 INSTAGRAM_HEADERS = {
-    "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100)",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "X-IG-App-ID": "936619743392459",
+    "X-Requested-With": "XMLHttpRequest",
     "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.9",
 }
@@ -51,7 +52,7 @@ async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
         logger.info(f"@{username} → user_id={_user_id_cache[username]} (кэш)")
         return _user_id_cache[username]
 
-    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
+    url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
     cookies = {"sessionid": settings.instagram_session_id}
     proxy = _get_proxy()
 
@@ -94,7 +95,7 @@ async def get_story_media(
     session: aiohttp.ClientSession, user_id: str, story_id: str
 ) -> dict:
     """Получает медиа конкретной истории"""
-    url = f"https://i.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
+    url = f"https://www.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
     cookies = {"sessionid": settings.instagram_session_id}
     proxy = _get_proxy()
 
