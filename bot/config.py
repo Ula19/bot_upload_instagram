@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Instagram sessionid (для скачивания Stories)
     instagram_session_id: str = ""
 
+    # Local Bot API (пустая строка = стандартный API Telegram)
+    local_bot_api_url: str = ""
+
     @property
     def admin_id_list(self) -> list[int]:
         """Парсит admin_ids из строки в список int"""

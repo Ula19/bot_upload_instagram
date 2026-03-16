@@ -74,11 +74,17 @@ async def on_shutdown(bot: Bot) -> None:
 
 async def main() -> None:
     """Главная функция запуска"""
-    # создаём бота с HTML-парсингом по умолчанию
-    bot = Bot(
-        token=settings.bot_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
+    # локальный Bot API или стандартный
+    bot_kwargs = {
+        "token": settings.bot_token,
+        "default": DefaultBotProperties(parse_mode=ParseMode.HTML),
+    }
+    if settings.local_bot_api_url:
+        bot_kwargs["base_url"] = f"{settings.local_bot_api_url}/bot"
+        bot_kwargs["base_file_url"] = f"{settings.local_bot_api_url}/file/bot"
+        logger.info(f"Используем Local Bot API: {settings.local_bot_api_url}")
+
+    bot = Bot(**bot_kwargs)
 
     # диспетчер для обработки событий
     dp = Dispatcher()
