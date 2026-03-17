@@ -4,10 +4,6 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
-    volumes:
-      - ./instaloader_sessions:/root/.config/instaloader
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,9 +47,6 @@ services:
     restart: unless-stopped
     environment:
       API_URL: "http://cobalt:9000"
-      COOKIE_PATH: "/cookies.json"
-    volumes:
-      - ./cobalt_cookies.json:/cookies.json
 
 volumes:
   postgres-data:

@@ -1,6 +1,4 @@
-"""Сервис скачивания Instagram Stories — через private API + sessionid
-Поддерживает прокси (INSTAGRAM_PROXY) для обхода блокировки IP.
-"""
+"""Сервис скачивания Instagram Stories — через private API + sessionid"""
 import asyncio
 import logging
 import os
@@ -12,11 +10,10 @@ from bot.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Instagram API через www (i.instagram.com блокируется на серверных IP)
+# Instagram private API — мобильные заголовки
 INSTAGRAM_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100)",
     "X-IG-App-ID": "936619743392459",
-    "X-Requested-With": "XMLHttpRequest",
     "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.9",
 }
@@ -41,45 +38,32 @@ def is_story_url(url: str) -> bool:
 _user_id_cache: dict[str, str] = {}
 
 
-def _get_proxy() -> str | None:
-    """Возвращает прокси или None"""
-    return settings.instagram_proxy or None
-
-
 async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
     """Получает user_id по username через private API (с ретраем при 429)"""
     if username in _user_id_cache:
         logger.info(f"@{username} → user_id={_user_id_cache[username]} (кэш)")
         return _user_id_cache[username]
 
-    url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
+    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
     cookies = {"sessionid": settings.instagram_session_id}
-    proxy = _get_proxy()
 
     # ретрай при 429
-    max_retries = 2
-    delays = [5, 10]
-
-    for attempt in range(max_retries + 1):
+    for attempt in range(3):
         async with session.get(
             url, headers=INSTAGRAM_HEADERS, cookies=cookies,
             timeout=aiohttp.ClientTimeout(total=10),
-            proxy=proxy,
         ) as resp:
             if resp.status == 429:
-                if attempt < max_retries:
-                    delay = delays[attempt]
-                    logger.warning(f"429 от Instagram, ждём {delay}с (попытка {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(delay)
-                    continue
-                raise RuntimeError(
-                    "Instagram блокирует запросы (429).\n"
-                    "Нужен резидентный прокси — добавь INSTAGRAM_PROXY в .env"
-                )
+                delay = 5 * (attempt + 1)
+                logger.warning(f"429 от Instagram, ждём {delay}с (попытка {attempt + 1}/3)")
+                await asyncio.sleep(delay)
+                continue
             if resp.status != 200:
                 raise RuntimeError(f"Не удалось получить профиль @{username}: HTTP {resp.status}")
             data = await resp.json()
             break
+    else:
+        raise RuntimeError("Instagram блокирует запросы (429)")
 
     user = data.get("data", {}).get("user", {})
     user_id = user.get("id")
@@ -95,14 +79,12 @@ async def get_story_media(
     session: aiohttp.ClientSession, user_id: str, story_id: str
 ) -> dict:
     """Получает медиа конкретной истории"""
-    url = f"https://www.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
+    url = f"https://i.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
     cookies = {"sessionid": settings.instagram_session_id}
-    proxy = _get_proxy()
 
     async with session.get(
         url, headers=INSTAGRAM_HEADERS, cookies=cookies,
         timeout=aiohttp.ClientTimeout(total=10),
-        proxy=proxy,
     ) as resp:
         if resp.status != 200:
             raise RuntimeError(f"Не удалось получить истории: HTTP {resp.status}")
@@ -126,7 +108,7 @@ async def get_story_media(
 
 
 async def download_story(url: str, download_dir: str) -> dict:
-    """Скачивает историю и возвращает {file_path, media_type}"""
+    """Скачивает историю и возвращает {file_path, media_type, title}"""
     if not settings.instagram_session_id:
         raise RuntimeError(
             "Для скачивания Stories нужна авторизация.\n"
@@ -134,8 +116,7 @@ async def download_story(url: str, download_dir: str) -> dict:
         )
 
     username, story_id = parse_story_url(url)
-    proxy = _get_proxy()
-    logger.info(f"Stories: user=@{username}, proxy={'да' if proxy else 'нет'}")
+    logger.info(f"Stories: user=@{username}")
 
     async with aiohttp.ClientSession() as session:
         # получаем user_id
