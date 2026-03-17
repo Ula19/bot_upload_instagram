@@ -53,7 +53,7 @@ services:
       API_URL: "http://cobalt:9000"
       COOKIE_PATH: "/cookies.json"
     volumes:
-      - ./cobalt_cookies.json:/cookies.json:ro
+      - ./cobalt_cookies.json:/cookies.json
 
 volumes:
   postgres-data:
