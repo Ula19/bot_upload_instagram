@@ -38,6 +38,11 @@ def is_story_url(url: str) -> bool:
 _user_id_cache: dict[str, str] = {}
 
 
+def _get_proxy() -> str | None:
+    """Возвращает прокси или None"""
+    return settings.instagram_proxy or None
+
+
 async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
     """Получает user_id по username через private API (с ретраем при 429)"""
     if username in _user_id_cache:
@@ -51,7 +56,7 @@ async def get_user_id(session: aiohttp.ClientSession, username: str) -> str:
     for attempt in range(3):
         async with session.get(
             url, headers=INSTAGRAM_HEADERS, cookies=cookies,
-            timeout=aiohttp.ClientTimeout(total=10),
+            proxy=_get_proxy(), timeout=aiohttp.ClientTimeout(total=10),
         ) as resp:
             if resp.status == 429:
                 delay = 5 * (attempt + 1)
@@ -84,7 +89,7 @@ async def get_story_media(
 
     async with session.get(
         url, headers=INSTAGRAM_HEADERS, cookies=cookies,
-        timeout=aiohttp.ClientTimeout(total=10),
+        proxy=_get_proxy(), timeout=aiohttp.ClientTimeout(total=10),
     ) as resp:
         if resp.status != 200:
             raise RuntimeError(f"Не удалось получить истории: HTTP {resp.status}")
@@ -116,7 +121,8 @@ async def download_story(url: str, download_dir: str) -> dict:
         )
 
     username, story_id = parse_story_url(url)
-    logger.info(f"Stories: user=@{username}")
+    proxy = "да" if _get_proxy() else "нет"
+    logger.info(f"Stories: user=@{username}, proxy={proxy}")
 
     async with aiohttp.ClientSession() as session:
         # получаем user_id

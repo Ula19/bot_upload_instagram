@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Instagram sessionid (для скачивания Stories)
     instagram_session_id: str = ""
 
+    # Прокси для Instagram API (SSH-туннель или резидентный прокси)
+    instagram_proxy: str = ""
+
     # Local Bot API (пустая строка = стандартный API Telegram)
     local_bot_api_url: str = ""
 
