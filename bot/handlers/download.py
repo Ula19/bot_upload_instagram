@@ -24,6 +24,7 @@ from bot.keyboards.inline import get_back_keyboard
 from bot.services.instagram import DownloadResult, downloader
 from bot.services.stories import download_story, is_story_url
 from bot.utils.helpers import clean_instagram_url, is_instagram_url
+from bot.utils.video_meta import get_video_meta
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -148,10 +149,13 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
 
     if result.media_type == "video":
         emoji = "📹" if "Story" in result.title else "🎬"
+        meta = await get_video_meta(result.file_path)
         sent = await message.answer_video(
             video=file,
             caption=f"{emoji} {result.title}",
-            duration=int(result.duration) if result.duration else None,
+            width=meta.get("width"),
+            height=meta.get("height"),
+            duration=meta.get("duration"),
         )
         return sent.video.file_id
 
@@ -175,7 +179,12 @@ async def _send_media_group(
         # caption только на первом элементе
         caption = f"📸 Instagram Карусель ({len(results)} фото/видео)" if i == 0 else None
         if r.media_type == "video":
-            media.append(InputMediaVideo(media=file, caption=caption))
+            meta = await get_video_meta(r.file_path)
+            media.append(InputMediaVideo(
+                media=file, caption=caption,
+                width=meta.get("width"), height=meta.get("height"),
+                duration=meta.get("duration"),
+            ))
         else:
             media.append(InputMediaPhoto(media=file, caption=caption))
 
