@@ -172,7 +172,7 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
 async def _send_media_group(
     message: Message, results: list[DownloadResult]
 ) -> None:
-    """Отправляет карусель альбомом через media_group"""
+    """Отправляет карусель альбомом через media_group (макс 10 элементов на альбом)"""
     media = []
     for i, r in enumerate(results):
         file = FSInputFile(r.file_path)
@@ -188,7 +188,11 @@ async def _send_media_group(
         else:
             media.append(InputMediaPhoto(media=file, caption=caption))
 
-    await message.answer_media_group(media=media)
+    # Telegram разрешает максимум 10 элементов в одном альбоме
+    for chunk_start in range(0, len(media), 10):
+        chunk = media[chunk_start:chunk_start + 10]
+        await message.answer_media_group(media=chunk)
+
     logger.info(f"Карусель отправлена: {len(results)} элементов")
 
 
