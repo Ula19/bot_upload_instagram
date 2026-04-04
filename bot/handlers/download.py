@@ -141,7 +141,7 @@ async def _process_download(
         await status_msg.edit_text(t("error.story_expired", lang))
         await notify_admins(
             message.bot,
-            "🔴 <b>INSTAGRAM_SESSION_ID устарела!</b>\n\n"
+            f"{E['warning']} <b>INSTAGRAM_SESSION_ID устарела!</b>\n\n"
             "Скачивание Stories не работает для всех пользователей.\n\n"
             "Действие: обнови INSTAGRAM_SESSION_ID в .env и перезапусти бот (<code>docker compose restart bot</code>)",
         )
@@ -227,7 +227,7 @@ async def _send_cached(
             await message.answer_photo(photo=file_id, caption=caption)
     except Exception as e:
         logger.error(f"Ошибка отправки из кэша: {e}")
-        await message.answer("⚠️ Кэш устарел. Отправь ссылку ещё раз.")
+        await message.answer(f"{E['warning']} Кэш устарел. Отправь ссылку ещё раз.")
 
 
 def _make_caption(media_type: str, url: str, lang: str) -> str:

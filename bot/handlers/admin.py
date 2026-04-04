@@ -82,7 +82,7 @@ async def cmd_admin(message: Message) -> None:
 async def admin_stats(callback: CallbackQuery) -> None:
     """Показывает статистику"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     lang = await _get_lang(callback.from_user.id)
@@ -106,7 +106,7 @@ async def admin_stats(callback: CallbackQuery) -> None:
 async def admin_channels(callback: CallbackQuery) -> None:
     """Показывает список каналов"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     lang = await _get_lang(callback.from_user.id)
@@ -122,7 +122,7 @@ async def admin_channels(callback: CallbackQuery) -> None:
             lines.append(
                 f"{i}. <b>{ch.title}</b>\n"
                 f"   ID: <code>{ch.channel_id}</code>\n"
-                f"   🔗 {ch.invite_link}"
+                f"   {E['link']} {ch.invite_link}"
             )
         text = "\n".join(lines)
 
@@ -141,7 +141,7 @@ async def admin_channels(callback: CallbackQuery) -> None:
 async def start_add_channel(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало добавления канала"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     lang = await _get_lang(callback.from_user.id)
@@ -233,14 +233,14 @@ async def process_invite_link(message: Message, state: FSMContext) -> None:
             )
         await message.answer(
             f"{t('admin.channel_added', lang)}\n\n"
-            f"📢 {channel.title}\n"
-            f"🆔 <code>{channel.channel_id}</code>\n"
-            f"🔗 {channel.invite_link}",
+            f"{E['megaphone']} {channel.title}\n"
+            f"{E['pin']} <code>{channel.channel_id}</code>\n"
+            f"{E['link']} {channel.invite_link}",
             reply_markup=get_admin_keyboard(lang),
         )
     except ValueError as e:
         await message.answer(
-            f"❌ {e}",
+            f"{E['cross']} {e}",
             reply_markup=get_admin_keyboard(lang),
         )
 
@@ -251,7 +251,7 @@ async def process_invite_link(message: Message, state: FSMContext) -> None:
 async def confirm_delete_channel(callback: CallbackQuery) -> None:
     """Показываем подтверждение перед удалением"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     lang = await _get_lang(callback.from_user.id)
@@ -285,7 +285,7 @@ async def confirm_delete_channel(callback: CallbackQuery) -> None:
 async def delete_channel(callback: CallbackQuery) -> None:
     """Фактическое удаление канала"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     channel_id = int(callback.data.replace("admin_confirm_del_", ""))
@@ -294,9 +294,9 @@ async def delete_channel(callback: CallbackQuery) -> None:
         removed = await remove_channel(session, channel_id)
 
     if removed:
-        await callback.answer("✅ Канал удалён!")
+        await callback.answer(f"{E['check']} Канал удалён!")
     else:
-        await callback.answer("❌ Канал не найден")
+        await callback.answer(f"{E['cross']} Канал не найден")
 
     # обновляем список
     await admin_channels(callback)
@@ -347,7 +347,7 @@ def _normalize_channel_link(raw: str) -> str | None:
 async def start_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало рассылки — просим отправить сообщение"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     lang = await _get_lang(callback.from_user.id)
@@ -426,7 +426,7 @@ async def confirm_broadcast(
 ) -> None:
     """Подтверждение и запуск рассылки"""
     if not is_admin(callback.from_user.id):
-        await callback.answer("🚫 Нет доступа")
+        await callback.answer(f"{E['lock']} Нет доступа")
         return
 
     data = await state.get_data()
@@ -435,7 +435,7 @@ async def confirm_broadcast(
     await state.clear()
 
     if not msg_data:
-        await callback.answer("❌ Нет сообщения")
+        await callback.answer(f"{E['cross']} Нет сообщения")
         return
 
     await callback.message.edit_text(t("admin.broadcast_started", lang))

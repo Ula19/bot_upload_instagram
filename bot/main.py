@@ -13,6 +13,7 @@ from sqlalchemy import text
 from bot.config import settings
 from bot.database import engine
 from bot.database.models import Base
+from bot.emojis import E
 from bot.handlers import admin, download, start
 from bot.i18n import get_bot_commands
 from bot.middlewares.rate_limit import RateLimitMiddleware
@@ -62,8 +63,8 @@ async def on_startup(bot: Bot) -> None:
             try:
                 await bot.send_message(
                     admin_id,
-                    "⚠️ <b>Бот перезапущен после падения!</b>\n\n"
-                    f"🤖 @{bot_info.username}\n"
+                    f"{E['warning']} <b>Бот перезапущен после падения!</b>\n\n"
+                    f"{E['bot']} @{bot_info.username}\n"
                     "Проверь логи: <code>journalctl -u insta-bot -n 50</code>",
                 )
             except Exception as e:
