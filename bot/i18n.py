@@ -121,6 +121,33 @@ TRANSLATIONS = {
         "en": "\n\n⚡️ Download for free via @{bot_username}",
     },
 
+    # === Описания команд бота (для меню Telegram) ===
+    "cmd.start": {
+        "ru": "Запустить бота",
+        "uz": "Botni boshlash",
+        "en": "Start the bot",
+    },
+    "cmd.menu": {
+        "ru": "Главное меню",
+        "uz": "Asosiy menyu",
+        "en": "Main menu",
+    },
+    "cmd.profile": {
+        "ru": "Мой профиль",
+        "uz": "Mening profilim",
+        "en": "My profile",
+    },
+    "cmd.help": {
+        "ru": "Помощь",
+        "uz": "Yordam",
+        "en": "Help",
+    },
+    "cmd.language": {
+        "ru": "Сменить язык",
+        "uz": "Tilni o'zgartirish",
+        "en": "Change language",
+    },
+
     # === Профиль ===
     "profile.title": {
         "ru": (
@@ -545,3 +572,15 @@ def detect_language(language_code: str | None) -> str:
     if language_code.startswith("uz"):
         return "uz"
     return "en"
+
+
+def get_bot_commands(lang: str) -> list:
+    """Возвращает список BotCommand на нужном языке — для set_my_commands"""
+    from aiogram.types import BotCommand
+    return [
+        BotCommand(command="start",    description=t("cmd.start",    lang)),
+        BotCommand(command="menu",     description=t("cmd.menu",     lang)),
+        BotCommand(command="profile",  description=t("cmd.profile",  lang)),
+        BotCommand(command="help",     description=t("cmd.help",     lang)),
+        BotCommand(command="language", description=t("cmd.language", lang)),
+    ]

@@ -13,7 +13,7 @@ from bot.database.crud import (
     get_user_language,
     update_user_language,
 )
-from bot.i18n import detect_language, t
+from bot.i18n import detect_language, get_bot_commands, t
 from bot.keyboards.inline import (
     get_back_keyboard,
     get_language_keyboard,
@@ -39,6 +39,13 @@ async def cmd_start(message: Message) -> None:
             language=detected_lang,
         )
         lang = await get_user_language(session, message.from_user.id)
+
+    # устанавливаем команды на языке юзера
+    from aiogram.types import BotCommandScopeChat
+    await message.bot.set_my_commands(
+        get_bot_commands(lang),
+        scope=BotCommandScopeChat(chat_id=message.from_user.id),
+    )
 
     await message.answer(
         t("start.welcome", lang, name=message.from_user.first_name),
@@ -224,6 +231,13 @@ async def set_language(callback: CallbackQuery) -> None:
 
     async with async_session() as session:
         await update_user_language(session, callback.from_user.id, lang)
+
+    # обновляем меню команд для юзера на выбранный язык
+    from aiogram.types import BotCommandScopeChat
+    await callback.bot.set_my_commands(
+        get_bot_commands(lang),
+        scope=BotCommandScopeChat(chat_id=callback.from_user.id),
+    )
 
     await callback.message.edit_text(
         t("lang.changed", lang),
