@@ -14,6 +14,7 @@ from bot.config import settings
 from bot.database import engine
 from bot.database.models import Base
 from bot.handlers import admin, download, start
+from bot.i18n import get_bot_commands
 from bot.middlewares.rate_limit import RateLimitMiddleware
 from bot.middlewares.subscription import SubscriptionMiddleware
 
@@ -46,14 +47,14 @@ async def on_startup(bot: Bot) -> None:
     bot_info = await bot.get_me()
     logger.info(f"Бот запущен: @{bot_info.username}")
 
-    # устанавливаем меню команд
-    await bot.set_my_commands([
-        BotCommand(command="start", description="Запустить бота / Boshlash"),
-        BotCommand(command="menu", description="Главное меню / Asosiy menyu"),
-        BotCommand(command="profile", description="Мой профиль / Mening profilim"),
-        BotCommand(command="help", description="Помощь / Yordam"),
-        BotCommand(command="language", description="Сменить язык / Tilni o'zgartirish"),
-    ])
+    # устанавливаем дефолтное меню команд (Английский для всех остальных)
+    await bot.set_my_commands(get_bot_commands("en"))
+
+    # Русский — для тех, у кого Telegram на русском
+    await bot.set_my_commands(get_bot_commands("ru"), language_code="ru")
+
+    # Узбекский — для тех, у кого Telegram на узбекском
+    await bot.set_my_commands(get_bot_commands("uz"), language_code="uz")
 
     # health-check: если флаг существует — значит прошлый запуск упал
     if os.path.exists(_CRASH_FLAG):
