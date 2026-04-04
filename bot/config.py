@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     # Токен бота
     bot_token: str
 
+    # Username бота (для рекламной подписи под медиа)
+    bot_username: str = "InstaLoaderBot"
+
     # PostgreSQL
     db_host: str = "localhost"
     db_port: int = 5432

@@ -143,6 +143,12 @@ async def _process_download(
             downloader.cleanup(results)
 
 
+def _promo() -> str:
+    """Рекламная подпись под каждым медиа — чтобы получатель узнал про бота"""
+    from bot.config import settings
+    return f"\n\n⚡️ Скачано через @{settings.bot_username} — бесплатно!"
+
+
 async def _send_media(message: Message, result: DownloadResult) -> str | None:
     """Отправляет медиа юзеру и возвращает file_id"""
     file = FSInputFile(result.file_path)
@@ -152,7 +158,7 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
         meta = await get_video_meta(result.file_path)
         sent = await message.answer_video(
             video=file,
-            caption=f"{emoji} {result.title}",
+            caption=f"{emoji} {result.title}{_promo()}",
             width=meta.get("width"),
             height=meta.get("height"),
             duration=meta.get("duration"),
@@ -162,7 +168,7 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
     elif result.media_type == "photo":
         sent = await message.answer_photo(
             photo=file,
-            caption=f"📸 {result.title}",
+            caption=f"📸 {result.title}{_promo()}",
         )
         return sent.photo[-1].file_id
 
@@ -176,8 +182,8 @@ async def _send_media_group(
     media = []
     for i, r in enumerate(results):
         file = FSInputFile(r.file_path)
-        # caption только на первом элементе
-        caption = f"📸 Instagram Карусель ({len(results)} фото/видео)" if i == 0 else None
+        # caption только на первом элементе, добавляем рекламу
+        caption = f"📸 Instagram Карусель ({len(results)} фото/видео){_promo()}" if i == 0 else None
         if r.media_type == "video":
             meta = await get_video_meta(r.file_path)
             media.append(InputMediaVideo(
@@ -212,16 +218,17 @@ async def _send_cached(
 
 
 def _make_caption(media_type: str, url: str) -> str:
-    """Генерит caption по типу медиа и URL"""
+    """Генерит caption по типу медиа и URL (для кэшированных медиа)"""
+    promo = _promo()
     if is_story_url(url):
         match = re.search(r"stories/([^/]+)", url)
         username = match.group(1) if match else "unknown"
         emoji = "📹" if media_type == "video" else "📸"
-        return f"{emoji} Story @{username}"
+        return f"{emoji} Story @{username}{promo}"
     elif media_type == "photo":
-        return "📸 Instagram Фото"
+        return f"📸 Instagram Фото{promo}"
     else:
-        return "🎬 Instagram Reels"
+        return f"🎬 Instagram Reels{promo}"
 
 
 def _get_error_text(error: str, lang: str = "ru") -> str:
