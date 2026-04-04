@@ -68,7 +68,7 @@ async def _process_download(
 
     if cached:
         logger.info(f"Кэш найден для {clean_url}, отправляем file_id")
-        await _send_cached(message, cached.file_id, cached.media_type, clean_url)
+        await _send_cached(message, cached.file_id, cached.media_type, clean_url, lang)
         return
 
     # кэша нет — скачиваем
@@ -101,7 +101,7 @@ async def _process_download(
 
         if len(results) == 1:
             # одиночный файл — отправляем как раньше + кэшируем
-            file_id = await _send_media(message, results[0])
+            file_id = await _send_media(message, results[0], lang)
             if file_id:
                 async with async_session() as session:
                     await save_download(
@@ -120,7 +120,7 @@ async def _process_download(
                     await session.commit()
         else:
             # карусель — отправляем альбомом
-            await _send_media_group(message, results)
+            await _send_media_group(message, results, lang)
             async with async_session() as session:
                 user_obj = await get_or_create_user(
                     session=session,
@@ -143,13 +143,13 @@ async def _process_download(
             downloader.cleanup(results)
 
 
-def _promo() -> str:
+def _promo(lang: str) -> str:
     """Рекламная подпись под каждым медиа — чтобы получатель узнал про бота"""
     from bot.config import settings
-    return f"\n\n⚡️ Скачано через @{settings.bot_username} — бесплатно!"
+    return t("download.promo", lang, bot_username=settings.bot_username)
 
 
-async def _send_media(message: Message, result: DownloadResult) -> str | None:
+async def _send_media(message: Message, result: DownloadResult, lang: str) -> str | None:
     """Отправляет медиа юзеру и возвращает file_id"""
     file = FSInputFile(result.file_path)
 
@@ -158,7 +158,7 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
         meta = await get_video_meta(result.file_path)
         sent = await message.answer_video(
             video=file,
-            caption=f"{emoji} {result.title}{_promo()}",
+            caption=f"{emoji} {result.title}{_promo(lang)}",
             width=meta.get("width"),
             height=meta.get("height"),
             duration=meta.get("duration"),
@@ -168,7 +168,7 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
     elif result.media_type == "photo":
         sent = await message.answer_photo(
             photo=file,
-            caption=f"📸 {result.title}{_promo()}",
+            caption=f"📸 {result.title}{_promo(lang)}",
         )
         return sent.photo[-1].file_id
 
@@ -176,14 +176,14 @@ async def _send_media(message: Message, result: DownloadResult) -> str | None:
 
 
 async def _send_media_group(
-    message: Message, results: list[DownloadResult]
+    message: Message, results: list[DownloadResult], lang: str
 ) -> None:
     """Отправляет карусель альбомом через media_group (макс 10 элементов на альбом)"""
     media = []
     for i, r in enumerate(results):
         file = FSInputFile(r.file_path)
         # caption только на первом элементе, добавляем рекламу
-        caption = f"📸 Instagram Карусель ({len(results)} фото/видео){_promo()}" if i == 0 else None
+        caption = f"📸 Instagram Карусель ({len(results)} фото/видео){_promo(lang)}" if i == 0 else None
         if r.media_type == "video":
             meta = await get_video_meta(r.file_path)
             media.append(InputMediaVideo(
@@ -203,10 +203,10 @@ async def _send_media_group(
 
 
 async def _send_cached(
-    message: Message, file_id: str, media_type: str, url: str
+    message: Message, file_id: str, media_type: str, url: str, lang: str
 ) -> None:
     """Отправляет из кэша по file_id с тем же caption"""
-    caption = _make_caption(media_type, url)
+    caption = _make_caption(media_type, url, lang)
     try:
         if media_type == "video":
             await message.answer_video(video=file_id, caption=caption)
@@ -217,9 +217,9 @@ async def _send_cached(
         await message.answer("⚠️ Кэш устарел. Отправь ссылку ещё раз.")
 
 
-def _make_caption(media_type: str, url: str) -> str:
+def _make_caption(media_type: str, url: str, lang: str) -> str:
     """Генерит caption по типу медиа и URL (для кэшированных медиа)"""
-    promo = _promo()
+    promo = _promo(lang)
     if is_story_url(url):
         match = re.search(r"stories/([^/]+)", url)
         username = match.group(1) if match else "unknown"

@@ -115,6 +115,11 @@ TRANSLATIONS = {
         "uz": f"{E['camera']} Hozircha faqat video, Reels va Stories qo'llab-quvvatlanadi.",
         "en": f"{E['camera']} Currently only videos, Reels and Stories are supported.",
     },
+    "download.promo": {
+        "ru": "\n\n⚡️ Скачивай бесплатно через @{bot_username}",
+        "uz": "\n\n⚡️ @{bot_username} orqali bepul yuklab oling",
+        "en": "\n\n⚡️ Download for free via @{bot_username}",
+    },
 
     # === Профиль ===
     "profile.title": {
