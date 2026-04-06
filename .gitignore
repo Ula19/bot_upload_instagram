@@ -19,8 +19,11 @@ __pycache__/
 .idea/
 .vscode/
 
-# Dolt (beads)
-.dolt/
+# служебные папки агентов
+.beads/
+.claude/
+
+# локальные базы
 *.db
 
 # скачанные медиа
@@ -30,6 +33,5 @@ downloads/
 alembic/versions/*.pyc
 
 # не отслеживаем md кроме README
-AGENTS.md
-PROJECT_LOG.md
-DEPLOY.md
+*.md
+!README.md
