@@ -1,6 +1,6 @@
 # 🎬 Instagram Downloader Bot
 
-Telegram-бот для скачивания видео, фото и Stories из Instagram.
+Telegram-бот для скачивания видео, Reels, фото, каруселей и Stories из Instagram.
 
 ---
 
@@ -8,21 +8,25 @@ Telegram-бот для скачивания видео, фото и Stories из
 
 | Функция | Описание |
 |---------|----------|
-| 📥 Скачивание | Видео, Reels, фото и Stories по ссылке |
-| ⚡ Кэширование | Повторные запросы — мгновенно (file_id) |
-| 🌐 Мультиязычность | Русский / Узбекский + автоопределение |
+| 📥 Скачивание | Видео, Reels, фото, карусели (альбомом) и Stories по ссылке |
+| 📦 Большие файлы | До 2 ГБ через Local Bot API |
+| ⚡ Кэширование | Повторные запросы — мгновенно (file_id, TTL 30 дней) |
+| 🌐 Мультиязычность | Русский / Узбекский / English + автоопределение |
 | 🔔 Подписка на каналы | Обязательная подписка для использования |
 | 🔄 Pending URL | Автоскачивание ссылки после подписки |
-| 🔧 Админ-панель | Статистика, управление каналами |
-| 🎨 UI | Цветные кнопки с эмодзи (Bot API 9.4) |
+| 🚦 Rate limit | 5 запросов в минуту на пользователя |
+| 📣 Массовая рассылка | Рассылка по всем юзерам из админки |
+| 🔧 Админ-панель | Статистика, управление каналами, рассылка |
+| 🎨 UI | Premium custom эмодзи, нативное меню Telegram |
 
 ## 🛠 Стек технологий
 
 - **Python 3.12** + **aiogram 3** — асинхронный Telegram Bot API
-- **PostgreSQL** + **SQLAlchemy 2.0** — база данных
-- **Cobalt API** (Docker) — скачивание видео/фото
+- **PostgreSQL 16** + **SQLAlchemy 2.0** (async, asyncpg) — база данных
+- **Cobalt API** (Docker) — движок скачивания видео/Reels/фото
 - **Instagram Private API** — скачивание Stories
-- **aiohttp** — HTTP-клиент
+- **Telegram Local Bot API** — поддержка файлов до 2 ГБ
+- **aiohttp** + **aiohttp-socks** — HTTP-клиент с поддержкой HTTP/HTTPS/SOCKS4/SOCKS5 прокси
 - **pydantic-settings** — конфигурация
 
 ## 📁 Структура проекта
@@ -31,7 +35,8 @@ Telegram-бот для скачивания видео, фото и Stories из
 bot_4_insta/
 ├── bot/
 │   ├── config.py              # Настройки из .env
-│   ├── i18n.py                # Переводы (ru/uz)
+│   ├── i18n.py                # Переводы (ru/uz/en)
+│   ├── emojis.py              # Premium custom эмодзи
 │   ├── main.py                # Точка входа
 │   ├── database/
 │   │   ├── __init__.py        # Подключение к БД
@@ -40,44 +45,52 @@ bot_4_insta/
 │   ├── handlers/
 │   │   ├── start.py           # /start, меню, язык, подписка
 │   │   ├── download.py        # Скачивание по ссылке
-│   │   └── admin.py           # Админ-панель
+│   │   └── admin.py           # Админ-панель + рассылка
 │   ├── keyboards/
 │   │   ├── inline.py          # Основные кнопки
 │   │   └── admin.py           # Кнопки админки
 │   ├── middlewares/
+│   │   ├── rate_limit.py      # 5 запросов в минуту
 │   │   └── subscription.py    # Проверка подписки
 │   ├── services/
 │   │   ├── instagram.py       # Cobalt API клиент
-│   │   └── stories.py         # Instagram Stories API
+│   │   └── stories.py         # Instagram Stories API (+ SOCKS5)
 │   └── utils/
 │       └── helpers.py         # URL валидация
+├── docker-compose.yml         # Бот + БД + Cobalt + Local Bot API
+├── Dockerfile
 ├── .env.example               # Шаблон переменных
 ├── requirements.txt           # Зависимости
-├── DEPLOY.md                  # Гайд по деплою
 └── README.md
 ```
 
-## ⚡ Быстрый старт
+## ⚡ Быстрый старт (Docker Compose)
 
 ```bash
 # 1. Клонирование
 git clone <repo-url> && cd bot_4_insta
 
-# 2. Виртуальное окружение
-python3 -m venv venv && source venv/bin/activate
-
-# 3. Зависимости
-pip install -r requirements.txt
-
-# 4. Настройки
+# 2. Настройки
 cp .env.example .env
-# заполнить .env (токен, БД, sessionid)
+# заполнить .env (BOT_TOKEN, ADMIN_IDS, INSTAGRAM_SESSION_ID, API_ID, API_HASH)
 
-# 5. Cobalt API (Docker)
-docker run -d -p 9000:9000 -e API_URL=http://localhost:9000 \
-  ghcr.io/imputnet/cobalt:10
+# 3. Запуск (поднимает бот, PostgreSQL, Cobalt, Local Bot API)
+docker compose up -d --build
 
-# 6. Запуск
+# 4. Логи
+docker compose logs -f bot
+
+# 5. Обновление
+git pull && docker compose up -d --build
+```
+
+## 🖥 Локальный запуск (для разработки)
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# нужны внешние сервисы: PostgreSQL + Cobalt
 python -m bot.main
 ```
 
@@ -86,23 +99,25 @@ python -m bot.main
 | Переменная | Описание |
 |-----------|----------|
 | `BOT_TOKEN` | Токен от @BotFather |
-| `INSTAGRAM_SESSION_ID` | Cookie sessionid (запасной аккаунт!) |
-| `DB_HOST` | Хост PostgreSQL |
-| `DB_PORT` | Порт PostgreSQL (5432) |
-| `DB_NAME` | Имя базы данных |
-| `DB_USER` | Пользователь БД |
-| `DB_PASSWORD` | Пароль БД |
-| `ADMIN_IDS` | Telegram ID администраторов (через запятую) |
-| `COBALT_API_URL` | URL Cobalt API (http://localhost:9000) |
-
+| `ADMIN_IDS` | Telegram ID админов (через запятую) |
+| `INSTAGRAM_SESSION_ID` | Cookie sessionid (запасной аккаунт для Stories) |
+| `INSTAGRAM_PROXY` | URL прокси (HTTP/HTTPS/SOCKS4/SOCKS5), опционально |
+| `COBALT_API_URL` | URL Cobalt API |
+| `LOCAL_BOT_API_URL` | URL Local Bot API (для файлов >50 МБ) |
+| `API_ID`, `API_HASH` | Telegram API credentials для Local Bot API |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Параметры PostgreSQL |
+| `CACHE_TTL_DAYS` | TTL кэша скачиваний (по умолчанию 30) |
 
 ## 👨‍💻 Админ-панель
 
-Доступ: кнопка «🔧 Админ-панель» в меню (только для `ADMIN_IDS`)
+Доступ: кнопка «Админ-панель» в меню (только для `ADMIN_IDS`).
 
 - 📊 **Статистика** — юзеры, скачивания, каналы
-- 📢 **Каналы** — добавить/удалить каналы подписки
+- 📢 **Каналы** — добавить/удалить каналы обязательной подписки (FSM)
+- 📣 **Рассылка** — массовое сообщение всем юзерам (FSM с подтверждением)
 - 🏠 **Главное меню** — вернуться в бота
+
+Также приходят алерты при протухании `INSTAGRAM_SESSION_ID`.
 
 ## 📄 Лицензия
 
