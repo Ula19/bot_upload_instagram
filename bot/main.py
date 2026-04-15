@@ -1,7 +1,9 @@
 """Точка входа — запуск бота"""
 import asyncio
+import glob
 import logging
 import os
+import time
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -29,6 +31,45 @@ logger = logging.getLogger(__name__)
 
 # файл-флаг для определения crash recovery
 _CRASH_FLAG = "/tmp/insta_bot_running.flag"
+
+# паттерны для фоновой очистки
+_TMP_GLOB = "/tmp/insta_*/**/*"
+_BOT_API_GLOB = "/var/lib/telegram-bot-api/**/*"
+
+
+async def _background_cleanup() -> None:
+    """Фоновая очистка /tmp и Local Bot API каждые 5 минут.
+    /tmp/insta_* — старше 30 мин, Local Bot API — старше 1 часа.
+    """
+    while True:
+        await asyncio.sleep(300)
+        now = time.time()
+        tmp_cutoff = now - 30 * 60
+        api_cutoff = now - 60 * 60
+
+        cleaned_tmp = 0
+        for f in glob.glob(_TMP_GLOB, recursive=True):
+            try:
+                if os.path.isfile(f) and os.path.getmtime(f) < tmp_cutoff:
+                    os.remove(f)
+                    cleaned_tmp += 1
+            except OSError:
+                pass
+
+        cleaned_api = 0
+        for f in glob.glob(_BOT_API_GLOB, recursive=True):
+            try:
+                if os.path.isfile(f) and os.path.getmtime(f) < api_cutoff:
+                    os.remove(f)
+                    cleaned_api += 1
+            except OSError:
+                pass
+
+        if cleaned_tmp or cleaned_api:
+            logger.info(
+                "Фоновая очистка: /tmp=%d, Local Bot API=%d",
+                cleaned_tmp, cleaned_api,
+            )
 
 
 async def on_startup(bot: Bot) -> None:
@@ -73,6 +114,10 @@ async def on_startup(bot: Bot) -> None:
     # ставим флаг — бот работает
     with open(_CRASH_FLAG, "w") as f:
         f.write("running")
+
+    # запускаем фоновую очистку /tmp и Local Bot API
+    asyncio.create_task(_background_cleanup())
+    logger.info("Фоновая очистка запущена (каждые 5 мин)")
 
 
 async def on_shutdown(bot: Bot) -> None:
