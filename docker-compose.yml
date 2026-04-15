@@ -11,6 +11,9 @@ services:
         condition: service_started
       cobalt:
         condition: service_started
+    volumes:
+      # доступ к файлам Local Bot API для фоновой очистки
+      - bot-api-data:/var/lib/telegram-bot-api
 
   # Local Bot API — файлы до 2 ГБ без ограничений
   bot-api:
